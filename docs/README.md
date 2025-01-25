@@ -2,9 +2,8 @@
 layout: home
 permalink: index.html
 
-# Please update this with your repository name and project title
-repository-name: eYY-3yp-project-template
-title: Project Template
+repository-name: eYY-3yp-The_Robot_Waiter
+title: The Robot Waiter
 ---
 
 [comment]: # "This is the standard layout for the project, but you can clean this and use your own template"
@@ -14,9 +13,10 @@ title: Project Template
 ---
 
 ## Team
--  eNumber, Name, [email](mailto:name@email.com)
--  eNumber, Name, [email](mailto:name@email.com)
--  eNumber, Name, [email](mailto:name@email.com)
+-  E/20/100, A.I. Fernando, [email](mailto:e20100@eng.pdn.ac.lk)
+-  E/20/243, K.M.K.Malintha, [email](mailto:e20243@eng.pdn.ac.lk)
+-  E/20/280, R.S.Pathirage, [email](mailto:e20280@eng.pdn.ac.lk)
+-  E/20/434, Wickramaarachchi P.A., [email](mailto:e20434@eng.pdn.ac.lk)
 
 <!-- Image (photo/drawing of the final hardware) should be here -->
 

@@ -58,7 +58,7 @@ The solution architecture integrates hardware and software components to create 
 
 ### Description
 
-1. **Controller App:** A web or mobile application allows users to control the robot's movements and tasks remotely. The app communicates with the cloud server to relay commands and receive feedback.
+1. **Controller App:** A web application allows users to control the robot's movements and tasks remotely. The app communicates with the cloud server to relay commands and receive feedback.
 
 2. **Cloud Server:** Acts as the central communication hub between the controller app and the robot. It processes commands, manages data, and ensures secure communication.
 

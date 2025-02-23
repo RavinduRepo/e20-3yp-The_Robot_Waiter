@@ -5,9 +5,9 @@ import paho.mqtt.client as mqtt
 # AWS IoT Core settings
 AWS_ENDPOINT = "a2xhp106oe6s98-ats.iot.ap-southeast-2.amazonaws.com"
 THING_NAME = "3yp-device1"
-CERT_PATH = "cert/799d1ffb1d3048e86a907eee932912dc855437b47e8d52b88c6316cf2dc2d8a0-certificate.pem.crt"
-KEY_PATH = "cert/799d1ffb1d3048e86a907eee932912dc855437b47e8d52b88c6316cf2dc2d8a0-private.pem.key"
-ROOT_CA_PATH = "cert/AmazonRootCA1.pem"
+CERT_PATH = "../cert/799d1ffb1d3048e86a907eee932912dc855437b47e8d52b88c6316cf2dc2d8a0-certificate.pem.crt"
+KEY_PATH = "../cert/799d1ffb1d3048e86a907eee932912dc855437b47e8d52b88c6316cf2dc2d8a0-private.pem.key"
+ROOT_CA_PATH = "../cert/AmazonRootCA1.pem"
 
 # MQTT Callback for received messages
 def on_message(client, userdata, message):

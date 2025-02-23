@@ -1,5 +1,7 @@
 import RPi.GPIO as GPIO
 import time
+import csv
+import os
 
 # Define GPIO pins
 TRIG = 23  # GPIO23 (Physical pin 16)
@@ -11,8 +13,6 @@ GPIO.setup(TRIG, GPIO.OUT)
 GPIO.setup(ECHO, GPIO.IN)
 
 def get_distance():
-    print("Trying to measure distance...")
-
     # Ensure trigger is low initially
     GPIO.output(TRIG, False)
     time.sleep(0.1)  # Sensor stabilization time
@@ -28,7 +28,6 @@ def get_distance():
     while GPIO.input(ECHO) == 0:
         start_time = time.time()
         if time.time() - timeout_start > 0.02:  # 20ms timeout
-            print("Echo signal not received!")
             return -1
 
     # Wait for echo signal to end
@@ -37,7 +36,6 @@ def get_distance():
     while GPIO.input(ECHO) == 1:
         stop_time = time.time()
         if time.time() - timeout_start > 0.02:  # 20ms timeout
-            print("Echo response took too long!")
             return -1
 
     # Calculate distance
@@ -46,17 +44,34 @@ def get_distance():
 
     return round(distance, 2)
 
+def save_to_csv(data, filename="ultra.csv"):
+    file_exists = os.path.exists(filename)
+    
+    with open(filename, mode='a', newline='') as file:
+        writer = csv.writer(file)
+        if not file_exists:
+            writer.writerow(["Distance (cm)"])  # Write header if file does not exist
+        writer.writerows(data)
+
 try:
-    while True:
+    measurements = []
+    for i in range(20):
         dist = get_distance()
         if dist != -1:  # Ignore invalid readings
-            print(f"Distance: {dist} cm")
+            measurements.append([dist])
+            print(f"Measurement {i+1}: {dist} cm")
         else:
             print("Invalid reading, retrying...")
-
         time.sleep(0.5)  # Reduce CPU load and ensure sensor stability
+    
+    if measurements:
+        save_to_csv(measurements)
+        print("Measurements saved to ultra.csv")
+    else:
+        print("No valid measurements to save.")
 
 except KeyboardInterrupt:
     print("\nMeasurement stopped by user")
-    GPIO.cleanup()
 
+finally:
+    GPIO.cleanup()

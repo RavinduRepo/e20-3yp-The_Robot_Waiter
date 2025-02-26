@@ -3,11 +3,11 @@ import ssl
 import paho.mqtt.client as mqtt
 
 # AWS IoT Core settings
-AWS_ENDPOINT = "a2xhp106oe6s98-ats.iot.ap-southeast-2.amazonaws.com"
+AWS_ENDPOINT = "a2cdp9hijgdiig-ats.iot.ap-southeast-2.amazonaws.com"
 THING_NAME = "3yp-device1"
-CERT_PATH = "../../cert/799d1ffb1d3048e86a907eee932912dc855437b47e8d52b88c6316cf2dc2d8a0-certificate.pem.crt"
-KEY_PATH = "../../cert/799d1ffb1d3048e86a907eee932912dc855437b47e8d52b88c6316cf2dc2d8a0-private.pem.key"
-ROOT_CA_PATH = "../../cert/AmazonRootCA1.pem"
+CERT_PATH = "../../AWS/d963cd1faf2a812ee9a50f1257971e394cdb03d34b49e6f9d787e81fdd2630fa-certificate.pem.crt"
+KEY_PATH = "../../AWS/d963cd1faf2a812ee9a50f1257971e394cdb03d34b49e6f9d787e81fdd2630fa-private.pem.key"
+ROOT_CA_PATH = "../../AWS/AmazonRootCA1.pem"
 
 # Topic for subscription
 TOPIC = "/3YP/batch2025/device1"

@@ -51,6 +51,13 @@ header nav .nav-list {
   display: flex;
   gap: 2.5rem;
 }
+header nav .main-nav-list {
+  list-style: none;
+  display: flex;  /* Makes it horizontal */
+  gap: 3.2rem;  /* Space between items */
+  padding: 0;
+}
+
 
 header nav .nav-link {
   color: #ddd;

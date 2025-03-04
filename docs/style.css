@@ -1,0 +1,182 @@
+/* General Reset */
+* {
+  padding: 0;
+  margin: 0;
+  box-sizing: border-box;
+  scroll-behavior: smooth;
+}
+
+html {
+  font-size: 62.5%;
+}
+
+body {
+  font-family: "Poppins", sans-serif;
+  line-height: 1.6;
+  font-weight: 400;
+  color: #444;
+  font-size: 1.6rem;
+  background-color: #f5f7fa;
+}
+
+/* Header */
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 7rem;
+  padding: 1.5rem 5rem;
+  background-color: #222;
+  border-bottom: 4px solid #ffa500;
+  position: fixed;
+  width: 100%;
+  top: 0;
+  z-index: 1000;
+}
+
+header a {
+  text-decoration: none;
+  color: #fff;
+}
+
+header .logo {
+  font-size: 2.8rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+header nav .nav-list {
+  list-style: none;
+  display: flex;
+  gap: 2.5rem;
+}
+
+header nav .nav-link {
+  color: #ddd;
+  font-size: 1.6rem;
+  transition: color 0.3s ease;
+}
+
+header nav .nav-link:hover,
+header nav .nav-link.active {
+  color: #ffa500;
+}
+
+/* Hero Section */
+.section-hero {
+  height: calc(100vh - 7rem);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background: linear-gradient(to right, #ff9966, #ff5e62);
+  color: white;
+}
+
+.hero-text-box {
+  max-width: 80rem;
+}
+
+.hero-text-box h1 {
+  font-size: 4.5rem;
+  text-transform: uppercase;
+}
+
+.hero-text-box h2 {
+  font-size: 2rem;
+  font-weight: 300;
+  margin-top: 1rem;
+  color: #eee;
+}
+
+.hero-btn {
+  margin-top: 2rem;
+  padding: 1rem 2rem;
+  font-size: 1.6rem;
+  background-color: #ffa500;
+  color: #222;
+  border: none;
+  cursor: pointer;
+  border-radius: 5px;
+  transition: 0.3s;
+}
+
+.hero-btn:hover {
+  background-color: #ff5e62;
+  color: white;
+}
+
+/* About Section */
+.section-about {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #222;
+  padding: 5rem;
+  gap: 3rem;
+  color: #ddd;
+  justify-content: center;
+}
+
+.section-about h2 {
+  font-size: 3.5rem;
+  color: #ffa500;
+}
+
+.about-text {
+  max-width: 80rem;
+  line-height: 1.8;
+}
+
+/* Team Section */
+.section-team {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #f5f7fa;
+  padding: 5rem 0;
+}
+
+.team-section-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4rem;
+  justify-content: center;
+}
+
+.team-card {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  text-align: center;
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+  width: 28rem;
+}
+
+.team-img {
+  width: 12rem;
+  border-radius: 50%;
+}
+
+.team-name {
+  font-size: 2rem;
+  margin-top: 1rem;
+  font-weight: bold;
+}
+
+.team-role {
+  font-size: 1.6rem;
+  color: #777;
+}
+
+/* Footer */
+footer {
+  background-color: #222;
+  color: white;
+  text-align: center;
+  padding: 2rem;
+  font-size: 1.4rem;
+  margin-top: 5rem;
+}

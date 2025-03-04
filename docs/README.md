@@ -37,7 +37,8 @@ The impact of this solution includes improved service efficiency, reduced labor 
 
 The solution architecture integrates hardware and software components to create a seamless robot waiter system. Below is an overview of the architecture:
 
-### High-Level Diagram
+### High- Level Diagram
+![image](https://github.com/user-attachments/assets/e8c0fe2f-16e6-4dbd-867d-3b828d4a6563)
 
 ### Description
 

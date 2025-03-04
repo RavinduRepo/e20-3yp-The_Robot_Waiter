@@ -16,7 +16,7 @@ title: The Robot Waiter
 -  E/20/100, A.I. Fernando, [email](mailto:e20100@eng.pdn.ac.lk)
 -  E/20/243, K.M.K.Malintha, [email](mailto:e20243@eng.pdn.ac.lk)
 -  E/20/280, R.S.Pathirage, [email](mailto:e20280@eng.pdn.ac.lk)
--  E/20/434, Wickramaarachchi P.A., [email](mailto:e20434@eng.pdn.ac.lk)
+-  E/20/434, Wickramaarachchi P.A. [email](mailto:e20434@eng.pdn.ac.lk)
 
 <!-- Image (photo/drawing of the final hardware) should be here -->
 

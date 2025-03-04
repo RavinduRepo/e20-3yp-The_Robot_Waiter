@@ -25,6 +25,9 @@
 
 The Robot Waiter is a remotely controlled service robot designed to assist in the food and beverage industry. It operates via online connectivity, providing efficient delivery of items to customers without the need for automation. This solution bridges the gap between traditional manual service and fully automated systems, offering flexibility, cost-effectiveness, and ease of use.
 
+![image](https://github.com/user-attachments/assets/3c92a44e-e214-4f95-afcb-72a33cf19e14)
+
+
 ---
 
 ## Solution Architecture

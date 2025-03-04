@@ -90,17 +90,26 @@ The impact of this solution includes improved service efficiency, reduced labor 
       <section id="budget" class="section-budget">
         <h1>Budget</h1>
         <div class="budget-img-container">
-          <img src="./images/system-design.png" alt="Budget Overview" />
+          <img src="./images/image_2025-03-04_194926736.png" alt="Budget Overview" />
         </div>
       </section>
 
       <!-- TESTING SECTION -->
       <section id="testing" class="section-testing">
         <h1>Testing</h1>
+        <h2>Hardware Testing</h2>
         <p>
-          Our Robot Waiter undergoes rigorous testing to ensure optimal 
-          performance in real-world scenarios, including obstacle detection, 
-          order delivery accuracy, and customer interaction.
+          
+We conducted individual tests for each sensor to ensure proper functionality:
+
+Camera Module: Verified video streaming capability using IoT Core, ensuring real-time image capture and transmission to the frontend.
+Ultrasonic Sensors: Tested distance measurement accuracy, sending real-time obstacle data via AWS IoT Core.
+Gyroscope Sensor: Evaluated motion tracking and orientation updates, integrating it with IoT Core for real-time monitoring in the frontend.</p>
+<h2>Software Testing</h2>
+<p>       
+MQTT on AWS IoT Core: Verified stable communication between the robot and the frontend by configuring MQTT publishers (robot commands) and subscribers (robot status updates).
+AWS Cognito Authentication: Tested the ability to gain temporary access tokens for the React frontend, reducing the need for constant requests through our Node.js server. This enhances efficiency while ensuring secure access control.
+WebSockets Integration: Ensured real-time data exchange between the frontend and the robot, improving response times and interaction reliability.
         </p>
       </section>
 

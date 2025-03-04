@@ -13,7 +13,7 @@
   }
   
   h1, h2 {
-    color: #2c3e50;
+    color: #e8ebef;
     margin-bottom: 15px;
   }
   
@@ -23,7 +23,7 @@
   
   a {
     text-decoration: none;
-    color: inherit;
+    color: white;
     transition: color 0.3s ease;
   }
   
@@ -49,20 +49,26 @@
   }
   
   nav.main-nav {
-    flex: 1;
-    text-align: right;
-  }
+    display: flex;
+    justify-content: flex-end; /* Aligns links to the right */
+    align-items: center;
+    gap: 20px; /* Spacing between links */
+    padding: 0;
+}
   
   nav.main-nav-list {
     list-style: none;
-    display: flex; /* Already set to flex for horizontal layout */
-    gap: 30px;     /* Adjusts the space between the list items */
-    padding: 0;     /* Removes any default padding */
-    margin: 0;      /* Removes any default margin */
+    display: flex;
+    flex-direction: row; /* Ensure horizontal layout */
+    justify-content: flex-end; /* Align to the right */
+    align-items: center; /* Align items vertically */
+    gap: 20px;
+    padding: 0;
+    margin: 0;
 }
 
 nav.main-nav-link {
-    color: #ecf0f1;
+    color: #f9feff;
     font-size: 16px;
     font-weight: 500;
     transition: color 0.3s;

@@ -117,8 +117,8 @@ nav.main-nav-link:hover {
   }
 .hero-video {
     width: 100%;  /* Makes the video responsive */
-    height: auto; /* Maintains aspect ratio */
-    max-width: 650px; /* Ensures it doesn't exceed its container */
+    height: 400px; /* Maintains aspect ratio */
+    max-width: 1000px; /* Ensures it doesn't exceed its container */
     border-radius: 8px;
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
 }

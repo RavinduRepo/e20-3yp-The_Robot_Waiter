@@ -87,8 +87,7 @@ We conducted individual tests for each sensor to ensure proper functionality:
 | Wheels              | Rubber Wheels                       | 4        | 400             | 1600            |
 | **Processing Unit** |                                      |          |                 |                 |
 | Raspberry Pi 3 B+   | 1.4GHz 64-bit Quad-Core Processor   | 1        | 12000           | 12000           |
-| ESP32               | Type C Version                      | 1        | 1000            | 1000            |
-|                     |                                      |          |                 | **36200**       |
+|                     |                                      |          |                 | **35200**       |
 
 ## Conclusion
 

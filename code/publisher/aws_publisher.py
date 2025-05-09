@@ -4,10 +4,10 @@ import time
 import paho.mqtt.client as mqtt
 
 # AWS IoT Core Settings (Updated with your details)
-AWS_ENDPOINT = "a2xhp106oe6s98-ats.iot.ap-southeast-2.amazonaws.com"
-THING_NAME = "3yp-device1"
-CERT_PATH = "cert/799d1ffb1d3048e86a907eee932912dc855437b47e8d52b88c6316cf2dc2d8a0-certificate.pem.crt"
-KEY_PATH = "cert/799d1ffb1d3048e86a907eee932912dc855437b47e8d52b88c6316cf2dc2d8a0-private.pem.key"
+AWS_ENDPOINT = "a2cdp9hijgdiig-ats.iot.ap-southeast-2.amazonaws.com"
+THING_NAME = "3yp-device2"
+CERT_PATH = "cert/567ac5f9b0348408455bfc91506042fe17270e042a0499705711a24c5c7a6883-certificate.pem.crt"
+KEY_PATH = "cert/567ac5f9b0348408455bfc91506042fe17270e042a0499705711a24c5c7a6883-private.pem.key"
 ROOT_CA_PATH = "cert/AmazonRootCA1.pem"
 
 # MQTT Topic to Publish To

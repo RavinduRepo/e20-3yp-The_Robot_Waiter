@@ -4,10 +4,10 @@ import paho.mqtt.client as mqtt
 
 # AWS IoT Core settings
 AWS_ENDPOINT = "a2cdp9hijgdiig-ats.iot.ap-southeast-2.amazonaws.com"
-THING_NAME = "3yp-device1"
-CERT_PATH = "../../AWS/d963cd1faf2a812ee9a50f1257971e394cdb03d34b49e6f9d787e81fdd2630fa-certificate.pem.crt"
-KEY_PATH = "../../AWS/d963cd1faf2a812ee9a50f1257971e394cdb03d34b49e6f9d787e81fdd2630fa-private.pem.key"
-ROOT_CA_PATH = "../../AWS/AmazonRootCA1.pem"
+THING_NAME = "3yp-device2"
+CERT_PATH = "cert/567ac5f9b0348408455bfc91506042fe17270e042a0499705711a24c5c7a6883-certificate.pem.crt"
+KEY_PATH = "cert/567ac5f9b0348408455bfc91506042fe17270e042a0499705711a24c5c7a6883-private.pem.key"
+ROOT_CA_PATH = "cert/AmazonRootCA1.pem"
 
 # Topic for subscription
 TOPIC = "/3YP/batch2025/device1"

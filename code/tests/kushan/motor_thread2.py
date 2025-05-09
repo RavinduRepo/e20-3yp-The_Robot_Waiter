@@ -14,9 +14,9 @@ IN4 = 23
 
 AWS_ENDPOINT = "a2cdp9hijgdiig-ats.iot.ap-southeast-2.amazonaws.com"
 THING_NAME = "3yp-device2"
-CERT_PATH = "cert/567ac5f9b0348408455bfc91506042fe17270e042a0499705711a24c5c7a6883-certificate.pem.crt"
-KEY_PATH = "cert/567ac5f9b0348408455bfc91506042fe17270e042a0499705711a24c5c7a6883-private.pem.key"
-ROOT_CA_PATH = "cert/AmazonRootCA1.pem"
+CERT_PATH = "../../cert/567ac5f9b0348408455bfc91506042fe17270e042a0499705711a24c5c7a6883-certificate.pem.crt"
+KEY_PATH = "../../cert/567ac5f9b0348408455bfc91506042fe17270e042a0499705711a24c5c7a6883-private.pem.key"
+ROOT_CA_PATH = "../../cert/AmazonRootCA1.pem"
 
 # Validate certificate paths
 for file in [CA_CERT, CERT_FILE, KEY_FILE]:

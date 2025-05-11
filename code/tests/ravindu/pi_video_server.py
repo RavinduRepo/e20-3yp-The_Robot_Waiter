@@ -6,7 +6,7 @@ import numpy as np
 from picamera2 import Picamera2
 
 picam2 = Picamera2()
-picam2.configure(picam2.create_video_configuration(main={"size": (320, 240)}))
+picam2.configure(picam2.create_video_configuration(main={"size": (320*3, 240*3)}))
 picam2.start()
 
 async def video_stream(websocket):  # <- Include 'path' parameter!

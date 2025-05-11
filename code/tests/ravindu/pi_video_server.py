@@ -9,7 +9,7 @@ picam2 = Picamera2()
 picam2.configure(picam2.create_video_configuration(main={"size": (320, 240)}))
 picam2.start()
 
-async def video_stream(websocket, path):  # <- Include 'path' parameter!
+async def video_stream(websocket):  # <- Include 'path' parameter!
     print(f"[+] Client connected: {websocket.remote_address}")
     try:
         while True:

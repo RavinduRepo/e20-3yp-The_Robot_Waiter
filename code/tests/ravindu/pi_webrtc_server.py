@@ -5,13 +5,15 @@ import logging
 import os
 import ssl
 import uuid
-import time
+import signal
+import sys
 import fractions
 import threading
+import time
 
 from aiohttp import web
 from aiortc import MediaStreamTrack, RTCPeerConnection, RTCSessionDescription
-from aiortc.contrib.media import MediaRelay, MediaBlackhole
+from aiortc.contrib.media import MediaRelay
 
 from picamera2 import Picamera2
 import cv2
@@ -24,7 +26,36 @@ logging.basicConfig(level=logging.INFO)
 pcs = set()
 relay = MediaRelay()
 picam2 = None
+frame_buffer = None
+frame_lock = threading.Lock()
 running = True
+
+# Camera thread to continuously capture frames
+def camera_capture_thread():
+    global frame_buffer, running, picam2
+    
+    logging.info("Starting camera capture thread")
+    while running:
+        try:
+            if picam2:
+                # Capture a frame
+                frame = picam2.capture_array()
+                
+                # Convert to BGR format if needed
+                if frame.shape[2] == 4:  # XRGB/XBGR format
+                    frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
+                
+                # Update frame buffer with thread safety
+                with frame_lock:
+                    frame_buffer = frame.copy()
+                
+                # Add a small delay to control frame rate
+                time.sleep(0.033)  # ~30fps
+        except Exception as e:
+            logging.error(f"Camera capture error: {e}")
+            time.sleep(0.5)  # Wait before trying again
+    
+    logging.info("Camera capture thread stopped")
 
 # Camera video track
 class PiCameraStreamTrack(MediaStreamTrack):
@@ -35,39 +66,42 @@ class PiCameraStreamTrack(MediaStreamTrack):
         self.frame_counter = 0
         
     async def recv(self):
-        # Get a frame from picamera2
+        global frame_buffer
+        
         from av import VideoFrame
         
+        # Wait for a valid frame
         while running:
-            try:
-                # Capture frame
-                frame = picam2.capture_array()
-                
-                # Convert to RGB format (if needed)
-                if frame.shape[2] == 4:  # XRGB/XBGR format
-                    frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
-                
-                # Create VideoFrame
-                video_frame = VideoFrame.from_ndarray(frame, format="bgr24")
-                
-                # Add timestamp and frame counter
-                video_frame.pts = self.frame_counter
-                video_frame.time_base = fractions.Fraction(1, 30)  # assuming 30fps
-                self.frame_counter += 1
-                
-                return video_frame
-            except Exception as e:
-                logging.error(f"Frame capture error: {e}")
-                await asyncio.sleep(0.1)
-                continue
+            # Get frame from buffer with thread safety
+            with frame_lock:
+                current_frame = frame_buffer.copy() if frame_buffer is not None else None
+            
+            if current_frame is not None:
+                try:
+                    # Create VideoFrame
+                    video_frame = VideoFrame.from_ndarray(current_frame, format="bgr24")
+                    
+                    # Add timestamp and frame counter
+                    video_frame.pts = self.frame_counter
+                    video_frame.time_base = fractions.Fraction(1, 30)
+                    self.frame_counter += 1
+                    
+                    return video_frame
+                except Exception as e:
+                    logging.error(f"Frame conversion error: {e}")
+            
+            # Wait before trying again
+            await asyncio.sleep(0.033)  # ~30fps
 
 # Web server routes
 async def index(request):
-    content = open(os.path.join(os.path.dirname(__file__), "index.html"), "r").read()
+    with open(os.path.join(os.path.dirname(__file__), "index.html"), "r") as file:
+        content = file.read()
     return web.Response(content_type="text/html", text=content)
 
 async def javascript(request):
-    content = open(os.path.join(os.path.dirname(__file__), "client.js"), "r").read()
+    with open(os.path.join(os.path.dirname(__file__), "client.js"), "r") as file:
+        content = file.read()
     return web.Response(content_type="application/javascript", text=content)
 
 async def offer(request):
@@ -75,7 +109,7 @@ async def offer(request):
     offer = RTCSessionDescription(sdp=params["sdp"], type=params["type"])
 
     pc = RTCPeerConnection()
-    pc_id = "PeerConnection(%s)" % uuid.uuid4()
+    pc_id = f"PeerConnection({uuid.uuid4()})"
     pcs.add(pc)
 
     def log_info(msg, *args):
@@ -120,31 +154,67 @@ async def offer(request):
 
 async def on_shutdown(app):
     global running
+    
+    # Set running flag to False to stop all threads
     running = False
+    logging.info("Shutting down...")
     
     # Close peer connections
     coros = [pc.close() for pc in pcs]
     await asyncio.gather(*coros)
     pcs.clear()
+    
+    # Wait for threads to finish
+    time.sleep(1)
 
+def cleanup_camera():
+    global picam2
+    
     # Stop camera
     if picam2:
-        picam2.stop()
+        try:
+            logging.info("Stopping camera...")
+            picam2.stop()
+            picam2.close()
+            picam2 = None
+            logging.info("Camera stopped")
+        except Exception as e:
+            logging.error(f"Error stopping camera: {e}")
 
 def init_camera(width=640, height=480):
     global picam2
-    picam2 = Picamera2()
     
-    # Configure camera
-    config = picam2.create_video_configuration(
-        main={"size": (width, height), "format": "XBGR8888"},
-        lores={"size": (320, 240), "format": "YUV420"}
-    )
-    picam2.configure(config)
-    
-    # Start camera
-    picam2.start()
-    logging.info(f"Camera initialized with resolution {width}x{height}")
+    try:
+        # Create and configure camera
+        picam2 = Picamera2()
+        
+        # Configure camera with a more robust approach
+        config = picam2.create_video_configuration(
+            main={"size": (width, height), "format": "XBGR8888"},
+            lores={"size": (320, 240), "format": "YUV420"},
+            buffer_count=4
+        )
+        picam2.configure(config)
+        
+        # Start camera
+        picam2.start()
+        logging.info(f"Camera initialized with resolution {width}x{height}")
+        
+        # Wait a moment for camera to initialize
+        time.sleep(1)
+        
+        # Test capture a frame to verify camera works
+        test_frame = picam2.capture_array()
+        if test_frame is None or test_frame.size == 0:
+            logging.error("Camera test frame is empty or invalid")
+            return False
+        
+        logging.info(f"Camera test frame shape: {test_frame.shape}")
+        return True
+        
+    except Exception as e:
+        logging.error(f"Failed to initialize camera: {e}")
+        return False
 
 def create_html_files():
     # Create index.html
@@ -205,10 +275,17 @@ def create_html_files():
             max-width: 600px;
             overflow-x: auto;
         }
+        .status {
+            padding: 5px 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            background: #ffeb3b;
+        }
     </style>
 </head>
 <body>
     <h1>Raspberry Pi Camera WebRTC Stream</h1>
+    <div class="status" id="connectionStatus">Status: Disconnected</div>
     <video id="video" autoplay playsinline width="640" height="480"></video>
     <div>
         <button id="start" onclick="start()">Start</button>
@@ -233,6 +310,11 @@ async function start() {
     const startButton = document.getElementById('start');
     const stopButton = document.getElementById('stop');
     const statsDiv = document.getElementById('stats');
+    const statusDiv = document.getElementById('connectionStatus');
+    
+    // Update status
+    statusDiv.textContent = 'Status: Connecting...';
+    statusDiv.style.background = '#ffeb3b';
     
     // Disable start button and enable stop button
     startButton.disabled = true;
@@ -255,6 +337,16 @@ async function start() {
         // Handle ICE connection state changes
         pc.oniceconnectionstatechange = () => {
             console.log('ICE connection state:', pc.iceConnectionState);
+            if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+                statusDiv.textContent = 'Status: Connected';
+                statusDiv.style.background = '#4CAF50';
+                statusDiv.style.color = 'white';
+            } else if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
+                statusDiv.textContent = 'Status: Connection failed';
+                statusDiv.style.background = '#f44336';
+                statusDiv.style.color = 'white';
+                stop();
+            }
         };
         
         // Handle track events
@@ -262,6 +354,16 @@ async function start() {
             if (event.track.kind === 'video') {
                 videoElement.srcObject = event.streams[0];
                 console.log('Received remote video track');
+                
+                // Add an event listener to handle video playing
+                videoElement.onplaying = () => {
+                    console.log('Video is now playing');
+                };
+                
+                // Add error handling for video
+                videoElement.onerror = (error) => {
+                    console.error('Video error:', error);
+                };
             }
         };
         
@@ -317,6 +419,9 @@ async function start() {
     } catch (e) {
         console.error('Failed to initialize WebRTC:', e);
         statsDiv.textContent = `Error: ${e.toString()}`;
+        statusDiv.textContent = 'Status: Error - ' + e.toString();
+        statusDiv.style.background = '#f44336';
+        statusDiv.style.color = 'white';
         stop();
     }
 }
@@ -327,6 +432,12 @@ function stop() {
     const startButton = document.getElementById('start');
     const stopButton = document.getElementById('stop');
     const statsDiv = document.getElementById('stats');
+    const statusDiv = document.getElementById('connectionStatus');
+    
+    // Update status
+    statusDiv.textContent = 'Status: Disconnected';
+    statusDiv.style.background = '#ffeb3b';
+    statusDiv.style.color = 'black';
     
     // Enable start button and disable stop button
     startButton.disabled = false;
@@ -353,9 +464,19 @@ function stop() {
     // Clear stats
     statsDiv.textContent = '';
 }
+
+// Handle page unload
+window.addEventListener('beforeunload', () => {
+    stop();
+});
 """)
     
     logging.info("Created HTML and JS files")
+
+def signal_handler(sig, frame):
+    logging.info(f"Received signal {sig}, shutting down...")
+    cleanup_camera()
+    sys.exit(0)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="WebRTC Raspberry Pi Camera server")
@@ -365,10 +486,25 @@ if __name__ == "__main__":
     parser.add_argument("--height", type=int, default=480, help="Camera height (default: 480)")
     parser.add_argument("--cert-file", help="SSL certificate file (for HTTPS)")
     parser.add_argument("--key-file", help="SSL key file (for HTTPS)")
+    parser.add_argument("--debug", action="store_true", help="Enable debug logging")
     args = parser.parse_args()
-
+    
+    # Set logging level
+    if args.debug:
+        logging.basicConfig(level=logging.DEBUG)
+    
+    # Register signal handlers for clean shutdown
+    signal.signal(signal.SIGINT, signal_handler)  # Ctrl+C
+    signal.signal(signal.SIGTERM, signal_handler)  # termination
+    
     # Initialize camera
-    init_camera(args.width, args.height)
+    if not init_camera(args.width, args.height):
+        logging.error("Failed to initialize camera. Exiting.")
+        sys.exit(1)
+    
+    # Start camera capture thread
+    capture_thread = threading.Thread(target=camera_capture_thread, daemon=True)
+    capture_thread.start()
     
     # Create HTML files if they don't exist
     if not os.path.exists("index.html") or not os.path.exists("client.js"):
@@ -389,6 +525,13 @@ if __name__ == "__main__":
         ssl_context = None
 
     # Start server
-    web.run_app(
-        app, host=args.host, port=args.port, ssl_context=ssl_context
-    )
+    try:
+        web.run_app(
+            app, host=args.host, port=args.port, ssl_context=ssl_context
+        )
+    except KeyboardInterrupt:
+        logging.info("Server stopped by user")
+    except Exception as e:
+        logging.error(f"Server error: {e}")
+    finally:
+        cleanup_camera()

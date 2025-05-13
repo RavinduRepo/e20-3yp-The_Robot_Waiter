@@ -59,7 +59,7 @@ async def video_stream(websocket):  # Include 'path' parameter!
         print(f"[!] Error during stream: {e}")
 
 async def main():
-    server = await websockets.serve(video_stream, '0.0.0.0', 8765, compression=True)
+    server = await websockets.serve(video_stream, '0.0.0.0', 8765)
     print("[*] WebSocket server started on ws://0.0.0.0:8765")
     await server.wait_closed()
 

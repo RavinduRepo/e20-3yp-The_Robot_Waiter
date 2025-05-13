@@ -1,12 +1,12 @@
 import asyncio
 import websockets
 import cv2
-import base64
 import numpy as np
 from picamera2 import Picamera2
 
+# Initialize the camera
 picam2 = Picamera2()
-picam2.configure(picam2.create_video_configuration(main={"size": (320*3, 240*3)}))
+picam2.configure(picam2.create_video_configuration(main={"size": (320 * 3, 240 * 3)}))
 picam2.start()
 
 async def video_stream(websocket):  # <- Include 'path' parameter!
@@ -15,8 +15,8 @@ async def video_stream(websocket):  # <- Include 'path' parameter!
         while True:
             frame = picam2.capture_array()
             _, buffer = cv2.imencode('.jpg', frame)
-            encoded = base64.b64encode(buffer).decode('utf-8')
-            await websocket.send(encoded)
+            # Send the raw image data as binary (not base64)
+            await websocket.send(buffer.tobytes())
             await asyncio.sleep(0.1)  # lower framerate to reduce bandwidth
     except websockets.exceptions.ConnectionClosed as e:
         print(f"[x] WebSocket closed: {e}")
@@ -30,4 +30,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-

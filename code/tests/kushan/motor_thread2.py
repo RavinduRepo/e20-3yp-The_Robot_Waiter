@@ -36,7 +36,7 @@ GPIO.setwarnings(False)
 motor_timer = None
 
 # Function to stop motors after timeout
-def stop_motor_after_timeout(timeout=5):
+def stop_motor_after_timeout(timeout=0.5): 
     global motor_timer
     if motor_timer:
         motor_timer.cancel()  # Cancel previous timer if any

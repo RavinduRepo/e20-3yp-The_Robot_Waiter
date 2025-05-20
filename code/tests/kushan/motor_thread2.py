@@ -8,7 +8,7 @@ from ultrasonic_thread1 import measure_distance  # Import the distance measure f
 
 # Define GPIO pins for the motors
 IN1 = 13 #17  # Motor 1
-IN2 = 19 #27
+IN2 = 27 #19
 IN3 = 22  # Motor 2
 IN4 = 23
 

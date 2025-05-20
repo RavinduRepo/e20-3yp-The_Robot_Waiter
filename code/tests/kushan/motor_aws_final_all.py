@@ -5,8 +5,8 @@ import os
 import threading  # For auto-stop timer
 
 # Define GPIO pins for the motors
-IN1 = 17  # Motor 1
-IN2 = 27
+IN1 = 13 #17  # Motor 1
+IN2 = 19 #27
 IN3 = 22  # Motor 2
 IN4 = 23
 

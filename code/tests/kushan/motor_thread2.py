@@ -7,8 +7,8 @@ import multiprocessing
 from ultrasonic_thread1 import measure_distance  # Import the distance measure function
 
 # Define GPIO pins for the motors
-IN1 = 17  # Motor 1
-IN2 = 27
+IN1 = 13 #17  # Motor 1
+IN2 = 19 #27
 IN3 = 22  # Motor 2
 IN4 = 23
 

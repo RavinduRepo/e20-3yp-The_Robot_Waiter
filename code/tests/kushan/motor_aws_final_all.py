@@ -12,7 +12,7 @@ IN4 = 23
 
 AWS_ENDPOINT = "a2cdp9hijgdiig-ats.iot.ap-southeast-2.amazonaws.com"
 THING_NAME = "3yp-device2"
-MQTT_TOPIC = "/3YP/batch2025/device1"
+MQTT_TOPIC = "robot/ap-southeast-2:e70e9d78-b1ec-c0b0-db33-71e5e3e33e6a/control"
 CERT_FILE = "../../cert/567ac5f9b0348408455bfc91506042fe17270e042a0499705711a24c5c7a6883-certificate.pem.crt"
 KEY_FILE = "../../cert/567ac5f9b0348408455bfc91506042fe17270e042a0499705711a24c5c7a6883-private.pem.key"
 CA_CERT = "../../cert/AmazonRootCA1.pem"

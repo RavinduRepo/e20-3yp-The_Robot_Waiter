@@ -7,14 +7,14 @@ import multiprocessing
 from ultrasonic_thread1 import measure_distance  # Import the distance measure function
 
 # Define GPIO pins for the motors
-IN1 = 17  # Motor 1
-IN2 = 27
+IN1 = 13 #17  # Motor 1
+IN2 = 27 #19
 IN3 = 22  # Motor 2
 IN4 = 23
 
 AWS_ENDPOINT = "a2cdp9hijgdiig-ats.iot.ap-southeast-2.amazonaws.com"
 THING_NAME = "3yp-device2"
-MQTT_TOPIC = "/3YP/batch2025/device1"
+MQTT_TOPIC = "#"
 CERT_FILE = "../../cert/567ac5f9b0348408455bfc91506042fe17270e042a0499705711a24c5c7a6883-certificate.pem.crt"
 KEY_FILE = "../../cert/567ac5f9b0348408455bfc91506042fe17270e042a0499705711a24c5c7a6883-private.pem.key"
 CA_CERT = "../../cert/AmazonRootCA1.pem"
@@ -36,7 +36,7 @@ GPIO.setwarnings(False)
 motor_timer = None
 
 # Function to stop motors after timeout
-def stop_motor_after_timeout(timeout=5):
+def stop_motor_after_timeout(timeout=0.5): 
     global motor_timer
     if motor_timer:
         motor_timer.cancel()  # Cancel previous timer if any

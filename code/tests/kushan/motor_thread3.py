@@ -25,7 +25,7 @@ CERT_FILE = "../../cert/567ac5f9b0348408455bfc91506042fe17270e042a0499705711a24c
 KEY_FILE = "../../cert/567ac5f9b0348408455bfc91506042fe17270e042a0499705711a24c5c7a6883-private.pem.key"
 CA_CERT = "../../cert/AmazonRootCA1.pem"
 
-distence = 100
+distence = 50
 # Validate certificates
 for f in [CA_CERT, CERT_FILE, KEY_FILE]:
     if not os.path.exists(f):

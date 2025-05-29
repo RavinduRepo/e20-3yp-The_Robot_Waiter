@@ -25,6 +25,7 @@ CERT_FILE = "../../cert/567ac5f9b0348408455bfc91506042fe17270e042a0499705711a24c
 KEY_FILE = "../../cert/567ac5f9b0348408455bfc91506042fe17270e042a0499705711a24c5c7a6883-private.pem.key"
 CA_CERT = "../../cert/AmazonRootCA1.pem"
 
+distence = 100
 # Validate certificates
 for f in [CA_CERT, CERT_FILE, KEY_FILE]:
     if not os.path.exists(f):
@@ -87,8 +88,8 @@ def monitor_obstacles():
     while True:
         front, back = shared_distances[0], shared_distances[1]
 
-        blocked_directions[0] = 1 if front < 30 else 0  # Block forward if front too close
-        blocked_directions[1] = 1 if back < 30 else 0   # Block backward if back too close
+        blocked_directions[0] = 1 if front < distence else 0  # Block forward if front too close
+        blocked_directions[1] = 1 if back < distence else 0   # Block backward if back too close
 
         print(f"📏 Front: {front:.2f} cm | Back: {back:.2f} cm | Blocked: F={blocked_directions[0]} B={blocked_directions[1]}")
         time.sleep(0.5)

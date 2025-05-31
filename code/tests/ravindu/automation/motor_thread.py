@@ -3,10 +3,9 @@ import time
 import os
 import threading
 import multiprocessing
-import paho.mqtt.client as mqtt
 import json
-import ssl
-from ultrasonic_thread import measure_distance
+from AWSIoTPythonSDK.MQTTLib import AWSIoTMQTTClient
+from ultrasonic_thread2 import measure_distance
 
 # Motor GPIO pins
 IN1, IN2 = 13, 27
@@ -116,29 +115,26 @@ def monitor_obstacles():
         time.sleep(0.5)
 
 # MQTT Callbacks
-def on_connect(client, userdata, flags, rc, properties=None):
-    if rc == 0:
-        print("✅ Connected to AWS IoT Core")
-        result, mid = client.subscribe(MQTT_TOPIC)
-        if result == mqtt.MQTT_ERR_SUCCESS:
-            print(f"📡 Successfully subscribed to topic: {MQTT_TOPIC}")
-        else:
-            print(f"❌ Failed to subscribe to topic: {MQTT_TOPIC}, error code: {result}")
-    else:
-        print(f"❌ MQTT connection failed with code {rc}")
+def on_connect_success():
+    print("✅ Connected to AWS IoT Core")
+    print(f"📡 Subscribing to topic: {MQTT_TOPIC}")
+    client.subscribe(MQTT_TOPIC, 1, on_message)
 
-def on_subscribe(client, userdata, mid, granted_qos):
-    print(f"✅ Subscription confirmed for message ID: {mid}, QoS: {granted_qos}")
+def on_connect_failure():
+    print("❌ Failed to connect to AWS IoT Core")
 
-def on_disconnect(client, userdata, rc):
-    if rc != 0:
-        print(f"❌ Unexpected disconnection from MQTT broker, code: {rc}")
-    else:
-        print("✅ Disconnected from MQTT broker")
+def on_disconnect():
+    print("❌ Disconnected from AWS IoT Core")
 
-def on_message(client, userdata, msg):
+def on_subscribe_success(mid):
+    print(f"✅ Successfully subscribed to topic with message ID: {mid}")
+
+def on_subscribe_failure(mid):
+    print(f"❌ Failed to subscribe to topic with message ID: {mid}")
+
+def on_message(client, userdata, message):
     global motor_timer
-    payload = msg.payload.decode()
+    payload = message.payload.decode()
     print(f"📩 Received message: {payload}")
 
     if payload == '{"key":"ArrowUp"}':
@@ -167,19 +163,33 @@ def on_message(client, userdata, msg):
         if motor_timer:
             motor_timer.cancel()
 
-# MQTT Client Setup with WebSocket support for temporary credentials
-client = mqtt.Client(client_id=f"robot_client_{int(time.time())}", protocol=mqtt.MQTTv311)
-client.on_connect = on_connect
-client.on_subscribe = on_subscribe
-client.on_disconnect = on_disconnect
-client.on_message = on_message
+# MQTT Client Setup using AWS IoT SDK with temporary credentials
+client_id = f"robot_client_{int(time.time())}"
+client = AWSIoTMQTTClient(client_id, useWebsocket=True)
 
-# Configure TLS for AWS IoT
-client.tls_set(ca_certs=None, certfile=None, keyfile=None, cert_reqs=ssl.CERT_REQUIRED,
-               tls_version=ssl.PROTOCOL_TLSv1_2, ciphers=None)
+# Configure AWS IoT endpoint
+client.configureEndpoint(AWS_ENDPOINT, 443)
+
+# Configure credentials
+client.configureCredentials(None)  # No root CA needed for WebSocket
+client.configureIAMCredentials(
+    credentials['access_key'],
+    credentials['secret_key'], 
+    credentials['session_token']
+)
+
+# Configure connection settings
+client.configureAutoReconnectBackoffBaseDelay(1)
+client.configureAutoReconnectBackoffMaxDelay(32)
+client.configureAutoReconnectBackoffMultiplier(2)
+client.configureOfflinePublishQueueing(-1)
+client.configureDrainingFrequency(2)
+client.configureConnectDisconnectTimeout(10)
+client.configureMQTTOperationTimeout(5)
 
 print(f"🔑 Using credentials from: {credentials['endpoint']}")
 print(f"📡 Will subscribe to topic: {credentials['topic']}")
+print(f"🤖 Client ID: {client_id}")
 
 # Launch background processes
 ultrasonic_process = multiprocessing.Process(target=measure_distance, args=(shared_distances,))
@@ -191,20 +201,43 @@ obstacle_process.start()
 # Main Loop
 try:
     print(f"🔗 Connecting to AWS IoT Core at {AWS_ENDPOINT}...")
-    client.connect(AWS_ENDPOINT, 8883, 60)
-    client.loop_start()
-    print("✅ MQTT client running... Waiting for commands.")
-
-    while True:
-        time.sleep(1)
+    
+    # Attempt connection
+    if client.connect(5):  # 5 second timeout
+        print("✅ Connected to AWS IoT Core successfully!")
+        
+        # Subscribe to topic
+        print(f"📡 Subscribing to topic: {MQTT_TOPIC}")
+        client.subscribe(MQTT_TOPIC, 1, on_message)
+        print("✅ Subscription request sent")
+        
+        print("✅ MQTT client running... Waiting for commands.")
+        
+        # Keep the main thread alive
+        while True:
+            time.sleep(1)
+    else:
+        print("❌ Failed to connect to AWS IoT Core")
+        print("💡 Possible issues:")
+        print("   - Invalid/expired credentials")
+        print("   - Network connectivity problems")
+        print("   - AWS IoT policy restrictions")
+        print("   - Incorrect endpoint URL")
 
 except KeyboardInterrupt:
     print("\n🛑 Shutting down...")
 
+except Exception as e:
+    print(f"❌ Error in main loop: {e}")
+
 finally:
     motor_stop()
     GPIO.cleanup()
-    client.loop_stop()
+    try:
+        client.disconnect()
+        print("✅ MQTT client disconnected")
+    except:
+        pass
     ultrasonic_process.terminate()
     obstacle_process.terminate()
     print("✅ Cleanup complete. Goodbye!")

@@ -55,7 +55,7 @@ def get_mqtt_config():
         # Use dynamic configuration from selenium script
         config = {
             'endpoint': AWS_ENDPOINT,  # Keep same endpoint
-            'topic': credentials.get('topic', f"robot/{credentials.get('robotId', 'unknown')}/commands"),
+            'topic': credentials.get('topic'),
             'token': credentials.get('token'),
             'robotId': credentials.get('robotId'),
             'use_token_auth': True

@@ -55,13 +55,13 @@ def get_mqtt_config():
         # Use dynamic configuration from selenium script
         config = {
             'endpoint': AWS_ENDPOINT,  # Keep same endpoint
-            'topic': credentials.get('topic'),
+            'topic': credentials.get('topic', f"robot/{credentials.get('robotId', 'unknown')}/commands"),
             'token': credentials.get('token'),
             'robotId': credentials.get('robotId'),
             'use_token_auth': True
         }
         print(f"🔑 Using token-based authentication for robot: {config['robotId']}")
-        print(f"📡 Subscribing tooooooooooooooooooooo topic: {config['topic']}")
+        print(f"📡 Subscribing to topic: {config['topic']}")
     else:
         # Use fallback certificate-based authentication
         config = {

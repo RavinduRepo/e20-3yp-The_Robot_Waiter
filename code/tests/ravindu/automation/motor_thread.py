@@ -1,57 +1,40 @@
 import json
-import os
 import time
+import os
 import threading
 import multiprocessing
 from AWSIoTPythonSDK.MQTTLib import AWSIoTMQTTClient
 from ultrasonic_thread2 import measure_distance
 import RPi.GPIO as GPIO
 
-# GPIO Setup
-IN1, IN2, IN3, IN4 = 13, 27, 22, 23
+# Motor GPIO pins
+IN1, IN2 = 13, 27
+IN3, IN4 = 22, 23
+
 GPIO.setmode(GPIO.BCM)
 GPIO.setwarnings(False)
-for pin in [IN1, IN2, IN3, IN4]:
-    GPIO.setup(pin, GPIO.OUT)
+GPIO.setup(IN1, GPIO.OUT)
+GPIO.setup(IN2, GPIO.OUT)
+GPIO.setup(IN3, GPIO.OUT)
+GPIO.setup(IN4, GPIO.OUT)
 
-# Constants
-TOPIC = "your/topic/here"  # same as in localStorage.getItem("topic") in React
-DISTANCE_THRESHOLD = 50
-
-# Shared memory for sensor distances
-shared_distances = multiprocessing.Array('d', [100.0, 100.0])  # [front, back]
-blocked_directions = multiprocessing.Array('b', [0, 0])
-motor_timer = None
-
-# Load credentials
+# === Load MQTT credentials from file ===
 with open("mqtt_data_log.json", "r") as f:
     data = json.load(f)
-    credentials = data["data"]["user"]
-    token = credentials["token"]
 
-# AWS MQTT settings 
-ACCESS_KEY = credentials["accessKeyId"]
-SECRET_KEY = credentials["secretAccessKey"]
-SESSION_TOKEN = credentials["sessionToken"]
-REGION = data["data"].get("region", "ap-southeast-2")  # optional default
-ENDPOINT = data["data"].get("host", "a2cdp9hijgdiig-ats.iot.ap-southeast-2.amazonaws.com")
+aws_access_key = data["data"]["awsAccessKey"]
+aws_secret_key = data["data"]["awsSecretKey"]
+aws_session_token = data["data"]["awsSessionToken"]
+region = data["data"]["awsRegion"]
+endpoint = data["data"]["awsHost"]
+topic = data["data"]["topic"]
 
-# Create MQTT client with WebSocket
-client = AWSIoTMQTTClient("raspberryPiClient", useWebsocket=True)
-client.configureEndpoint(ENDPOINT, 443)
-client.configureCredentials(os.path.join(os.getcwd(), "AmazonRootCA1.pem"))
+distence = 50
+shared_distances = multiprocessing.Array('d', [100.0, 100.0])  # [front, back]
+blocked_directions = multiprocessing.Array('b', [0, 0])        # [front_blocked, back_blocked]
+motor_timer = None
 
-# Set credentials
-client.configureIAMCredentials(ACCESS_KEY, SECRET_KEY, SESSION_TOKEN)
-
-# Configure MQTT behavior
-client.configureAutoReconnectBackoffTime(1, 32, 20)
-client.configureOfflinePublishQueueing(-1)
-client.configureDrainingFrequency(2)
-client.configureConnectDisconnectTimeout(10)
-client.configureMQTTOperationTimeout(5)
-
-# Motor control functions
+# === Motor control functions ===
 def stop_motor_after_timeout(timeout=0.3):
     global motor_timer
     if motor_timer:
@@ -60,6 +43,7 @@ def stop_motor_after_timeout(timeout=0.3):
     motor_timer.start()
 
 def motor_forward():
+    print("🚀 Moving forward")
     GPIO.output(IN1, GPIO.HIGH)
     GPIO.output(IN2, GPIO.LOW)
     GPIO.output(IN3, GPIO.HIGH)
@@ -67,6 +51,7 @@ def motor_forward():
     stop_motor_after_timeout()
 
 def motor_backward():
+    print("🔄 Moving backward")
     GPIO.output(IN1, GPIO.LOW)
     GPIO.output(IN2, GPIO.HIGH)
     GPIO.output(IN3, GPIO.LOW)
@@ -74,6 +59,7 @@ def motor_backward():
     stop_motor_after_timeout()
 
 def motor_left():
+    print("⬅️ Turning left")
     GPIO.output(IN1, GPIO.LOW)
     GPIO.output(IN2, GPIO.HIGH)
     GPIO.output(IN3, GPIO.HIGH)
@@ -81,6 +67,7 @@ def motor_left():
     stop_motor_after_timeout()
 
 def motor_right():
+    print("➡️ Turning right")
     GPIO.output(IN1, GPIO.HIGH)
     GPIO.output(IN2, GPIO.LOW)
     GPIO.output(IN3, GPIO.LOW)
@@ -88,69 +75,93 @@ def motor_right():
     stop_motor_after_timeout()
 
 def motor_stop():
-    for pin in [IN1, IN2, IN3, IN4]:
-        GPIO.output(pin, GPIO.LOW)
+    print("🛑 Stopping motors")
+    GPIO.output(IN1, GPIO.LOW)
+    GPIO.output(IN2, GPIO.LOW)
+    GPIO.output(IN3, GPIO.LOW)
+    GPIO.output(IN4, GPIO.LOW)
 
-# Obstacle monitoring
+# === Obstacle monitoring thread ===
 def monitor_obstacles():
     while True:
         front, back = shared_distances[0], shared_distances[1]
-        blocked_directions[0] = 1 if front < DISTANCE_THRESHOLD else 0
-        blocked_directions[1] = 1 if back < DISTANCE_THRESHOLD else 0
-        print(f"📏 Front: {front:.2f}, Back: {back:.2f} | Blocked: {blocked_directions[:]}")
+        blocked_directions[0] = 1 if front < distence else 0
+        blocked_directions[1] = 1 if back < distence else 0
+        print(f"📏 Front: {front:.2f} cm | Back: {back:.2f} cm | Blocked: F={blocked_directions[0]} B={blocked_directions[1]}")
         time.sleep(0.5)
 
-# MQTT Callbacks
+# === MQTT message handler ===
 def customCallback(client, userdata, message):
     global motor_timer
     payload = message.payload.decode()
-    print(f"📩 Received: {payload}")
+    print(f"📩 Received message: {payload}")
 
     if payload == '{"key":"ArrowUp"}':
         if blocked_directions[0]:
-            print("🚫 Obstacle ahead.")
+            print("🚫 Obstacle ahead!")
             motor_stop()
             return
         motor_forward()
+
     elif payload == '{"key":"ArrowDown"}':
         if blocked_directions[1]:
-            print("🚫 Obstacle behind.")
+            print("🚫 Obstacle behind!")
             motor_stop()
             return
         motor_backward()
+
     elif payload == '{"key":"ArrowLeft"}':
         motor_left()
+
     elif payload == '{"key":"ArrowRight"}':
         motor_right()
+
     else:
-        print("❓ Unknown command. Stopping.")
+        print("❓ Unknown command")
         motor_stop()
         if motor_timer:
             motor_timer.cancel()
 
-# Start distance measuring and obstacle threads
+# === Setup AWSIoTPythonSDK MQTT Client with WebSocket ===
+mqtt_client = AWSIoTMQTTClient("pythonClient", useWebsocket=True)
+mqtt_client.configureEndpoint(endpoint, 443)
+mqtt_client.configureCredentials("AmazonRootCA1.pem")  # Only the CA is needed for WebSocket
+
+# Configure credentials
+mqtt_client.configureIAMCredentials(aws_access_key, aws_secret_key, aws_session_token)
+
+# Configurations (timeouts and more)
+mqtt_client.configureAutoReconnectBackoffTime(1, 32, 20)
+mqtt_client.configureOfflinePublishQueueing(-1)  # Infinite queueing
+mqtt_client.configureDrainingFrequency(2)
+mqtt_client.configureConnectDisconnectTimeout(10)
+mqtt_client.configureMQTTOperationTimeout(5)
+
+# Connect and subscribe
+print(f"🔗 Connecting to {endpoint} using WebSocket...")
+mqtt_client.connect()
+mqtt_client.subscribe(topic, 1, customCallback)
+print(f"✅ Subscribed to {topic}. Waiting for messages...")
+
+# === Start background threads ===
 ultrasonic_process = multiprocessing.Process(target=measure_distance, args=(shared_distances,))
 ultrasonic_process.start()
 
 obstacle_process = multiprocessing.Process(target=monitor_obstacles)
 obstacle_process.start()
 
-# Connect and subscribe
+# === Keep the main thread alive ===
 try:
-    print("🔗 Connecting to AWS IoT Core...")
-    client.connect()
-    print("✅ Connected.")
-    client.subscribe(TOPIC, 1, customCallback)
-
     while True:
         time.sleep(1)
 
 except KeyboardInterrupt:
-    print("\n🛑 Keyboard Interrupt received.")
+    print("\n🛑 Shutting down...")
 
 finally:
     motor_stop()
     GPIO.cleanup()
     ultrasonic_process.terminate()
     obstacle_process.terminate()
-    print("✅ Cleanup complete.")
+    mqtt_client.disconnect()
+    print("✅ Cleanup complete. Goodbye!")

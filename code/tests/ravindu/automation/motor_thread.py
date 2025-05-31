@@ -22,12 +22,12 @@ GPIO.setup(IN4, GPIO.OUT)
 with open("mqtt_data_log.json", "r") as f:
     data = json.load(f)
 
-aws_access_key = data["data"]["awsAccessKey"]
-aws_secret_key = data["data"]["awsSecretKey"]
-aws_session_token = data["data"]["awsSessionToken"]
-region = data["data"]["awsRegion"]
-endpoint = data["data"]["awsHost"]
-topic = data["data"]["topic"]
+aws_access_key = data["data"]["user"]["awsAccessKey"]
+aws_secret_key = data["data"]["user"]["awsSecretKey"]
+aws_session_token = data["data"]["user"]["awsSessionToken"]
+region = data["data"]["user"]["awsRegion"]
+endpoint = data["data"]["user"]["awsHost"]
+topic = data["data"]["user"]["topic"]
 
 distence = 50
 shared_distances = multiprocessing.Array('d', [100.0, 100.0])  # [front, back]

@@ -231,7 +231,7 @@ def perform_login(driver, robot_id, password):
     """Perform robot login"""
     try:
         print("🌐 Navigating to login page...")
-        driver.get("http://localhost:5001/robot-login")
+        driver.get("http://54.79.197.251:5001/robot-login") #################################### change maybe
         time.sleep(3)
 
         print("🔍 Finding login elements...")

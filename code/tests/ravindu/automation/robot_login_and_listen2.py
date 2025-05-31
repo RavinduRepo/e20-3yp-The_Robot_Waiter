@@ -202,7 +202,7 @@ def wait_for_mqtt_message (driver, robot_id, timeout=18000):
     return None
 
 def setup_webdriver():
-    """Setup and return Chrome WebDriver"""
+    """Setup and return Chrome WebDriver for Raspberry Pi"""
     try:
         chrome_options = ChromeOptions()
         chrome_options.add_argument("--disable-gpu")
@@ -210,11 +210,16 @@ def setup_webdriver():
         chrome_options.add_argument("--disable-dev-shm-usage")
         chrome_options.add_argument("--disable-web-security")
         chrome_options.add_argument("--allow-running-insecure-content")
+        chrome_options.add_argument("--disable-extensions")
+        chrome_options.add_argument("--disable-background-timer-throttling")
+        chrome_options.add_argument("--disable-backgrounding-occluded-windows")
+        chrome_options.add_argument("--disable-renderer-backgrounding")
         
-        # Uncomment for headless mode
+        # Uncomment for headless mode (recommended for Raspberry Pi)
         # chrome_options.add_argument("--headless")
         
-        service = ChromeService("C:/Users/ravin/Downloads/chromedriver_win64/chromedriver.exe")
+        # Use system-installed chromedriver
+        service = ChromeService("/usr/bin/chromedriver")
         driver = webdriver.Chrome(service=service, options=chrome_options)
         driver.set_page_load_timeout(30)
         return driver

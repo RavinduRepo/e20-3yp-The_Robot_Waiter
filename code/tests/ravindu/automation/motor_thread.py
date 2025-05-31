@@ -5,7 +5,8 @@ import threading
 import multiprocessing
 import paho.mqtt.client as mqtt
 import json
-from ultrasonic_thread import measure_distance
+import ssl
+from ultrasonic_thread2 import measure_distance
 
 # Motor GPIO pins
 IN1, IN2 = 13, 27
@@ -166,12 +167,19 @@ def on_message(client, userdata, msg):
         if motor_timer:
             motor_timer.cancel()
 
-# MQTT Client Setup
-client = mqtt.Client()
+# MQTT Client Setup with WebSocket support for temporary credentials
+client = mqtt.Client(client_id=f"robot_client_{int(time.time())}", protocol=mqtt.MQTTv311)
 client.on_connect = on_connect
 client.on_subscribe = on_subscribe
 client.on_disconnect = on_disconnect
 client.on_message = on_message
+
+# Configure TLS for AWS IoT
+client.tls_set(ca_certs=None, certfile=None, keyfile=None, cert_reqs=ssl.CERT_REQUIRED,
+               tls_version=ssl.PROTOCOL_TLSv1_2, ciphers=None)
+
+print(f"🔑 Using credentials from: {credentials['endpoint']}")
+print(f"📡 Will subscribe to topic: {credentials['topic']}")
 
 # Launch background processes
 ultrasonic_process = multiprocessing.Process(target=measure_distance, args=(shared_distances,))

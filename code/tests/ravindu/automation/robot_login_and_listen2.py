@@ -122,7 +122,7 @@ def start_robot_control():
     try:
         print("🤖 Starting robot control script...")
         # Start the robot control script as a subprocess
-        subprocess.Popen([sys.executable, "robot_control.py"])
+        subprocess.Popen([sys.executable, "motor_thread.py"])
         print("✅ Robot control script started successfully")
         return True
     except Exception as e:

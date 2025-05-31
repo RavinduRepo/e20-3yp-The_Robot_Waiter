@@ -61,7 +61,7 @@ def get_mqtt_config():
             'use_token_auth': True
         }
         print(f"🔑 Using token-based authentication for robot: {config['robotId']}")
-        print(f"📡 Subscribing to topic: {config['topic']}")
+        print(f"📡 Subscribing tooooooooooooooooooooo topic: {config['topic']}")
     else:
         # Use fallback certificate-based authentication
         config = {

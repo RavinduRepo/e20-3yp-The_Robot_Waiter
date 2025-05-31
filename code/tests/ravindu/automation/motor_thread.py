@@ -1,60 +1,156 @@
 import json
-import time
 import os
+import time
+import threading
+import multiprocessing
 from AWSIoTPythonSDK.MQTTLib import AWSIoTMQTTClient
-from urllib.parse import urlparse
+from ultrasonic_thread2 import measure_distance
+import RPi.GPIO as GPIO
 
-# --- Step 1: Load stored credentials from file ---
+# GPIO Setup
+IN1, IN2, IN3, IN4 = 13, 27, 22, 23
+GPIO.setmode(GPIO.BCM)
+GPIO.setwarnings(False)
+for pin in [IN1, IN2, IN3, IN4]:
+    GPIO.setup(pin, GPIO.OUT)
+
+# Constants
+TOPIC = "your/topic/here"  # same as in localStorage.getItem("topic") in React
+DISTANCE_THRESHOLD = 50
+
+# Shared memory for sensor distances
+shared_distances = multiprocessing.Array('d', [100.0, 100.0])  # [front, back]
+blocked_directions = multiprocessing.Array('b', [0, 0])
+motor_timer = None
+
+# Load credentials
 with open("mqtt_data_log.json", "r") as f:
-    logs = f.readlines()
+    data = json.load(f)
+    credentials = data["data"]["user"]
+    token = credentials["token"]
 
-# Get the latest credentials log (the last line in the file)
-latest = json.loads(logs[-1])
-creds = latest["data"]["credentials"]
-region = latest["data"]["region"]
-endpoint = latest["data"]["endpoint"]
-topic = latest["data"]["topic"]
+# AWS MQTT settings
+ACCESS_KEY = credentials["accessKeyId"]
+SECRET_KEY = credentials["secretAccessKey"]
+SESSION_TOKEN = credentials["sessionToken"]
+REGION = data["data"].get("region", "ap-southeast-2")  # optional default
+ENDPOINT = data["data"].get("host", "a2cdp9hijgdiig-ats.iot.ap-southeast-2.amazonaws.com")
 
-access_key = creds["AccessKeyId"]
-secret_key = creds["SecretKey"]
-session_token = creds["SessionToken"]
+# Create MQTT client with WebSocket
+client = AWSIoTMQTTClient("raspberryPiClient", useWebsocket=True)
+client.configureEndpoint(ENDPOINT, 443)
+client.configureCredentials(os.path.join(os.getcwd(), "AmazonRootCA1.pem"))
 
-# --- Step 2: Setup MQTT client with WebSocket + SigV4 ---
-client_id = "raspi-client-" + str(int(time.time()))
+# Set credentials
+client.configureIAMCredentials(ACCESS_KEY, SECRET_KEY, SESSION_TOKEN)
 
-mqtt_client = AWSIoTMQTTClient(client_id, useWebsocket=True)
-mqtt_client.configureEndpoint(endpoint, 443)
-mqtt_client.configureCredentials("./AmazonRootCA1.pem")
+# Configure MQTT behavior
+client.configureAutoReconnectBackoffTime(1, 32, 20)
+client.configureOfflinePublishQueueing(-1)
+client.configureDrainingFrequency(2)
+client.configureConnectDisconnectTimeout(10)
+client.configureMQTTOperationTimeout(5)
 
-# Configure credentials (SigV4 Auth)
-mqtt_client.configureIAMCredentials(access_key, secret_key, session_token)
+# Motor control functions
+def stop_motor_after_timeout(timeout=0.3):
+    global motor_timer
+    if motor_timer:
+        motor_timer.cancel()
+    motor_timer = threading.Timer(timeout, motor_stop)
+    motor_timer.start()
 
-# Configure MQTT connection behavior
-mqtt_client.configureOfflinePublishQueueing(-1)  # Infinite queue
-mqtt_client.configureDrainingFrequency(2)        # Draining: 2 Hz
-mqtt_client.configureConnectDisconnectTimeout(10)
-mqtt_client.configureMQTTOperationTimeout(5)
+def motor_forward():
+    GPIO.output(IN1, GPIO.HIGH)
+    GPIO.output(IN2, GPIO.LOW)
+    GPIO.output(IN3, GPIO.HIGH)
+    GPIO.output(IN4, GPIO.LOW)
+    stop_motor_after_timeout()
 
-# --- Step 3: Define callbacks ---
-def on_message(client, userdata, message):
-    print(f"📩 Received message from {message.topic}: {message.payload.decode()}")
-    # Insert motor control logic here like in your previous on_message()
+def motor_backward():
+    GPIO.output(IN1, GPIO.LOW)
+    GPIO.output(IN2, GPIO.HIGH)
+    GPIO.output(IN3, GPIO.LOW)
+    GPIO.output(IN4, GPIO.HIGH)
+    stop_motor_after_timeout()
 
-mqtt_client.onMessage = on_message
+def motor_left():
+    GPIO.output(IN1, GPIO.LOW)
+    GPIO.output(IN2, GPIO.HIGH)
+    GPIO.output(IN3, GPIO.HIGH)
+    GPIO.output(IN4, GPIO.LOW)
+    stop_motor_after_timeout()
 
-# --- Step 4: Connect & Subscribe ---
-print("🔗 Connecting to AWS IoT Core via WebSocket with SigV4...")
-mqtt_client.connect()
-print("✅ Connected.")
+def motor_right():
+    GPIO.output(IN1, GPIO.HIGH)
+    GPIO.output(IN2, GPIO.LOW)
+    GPIO.output(IN3, GPIO.LOW)
+    GPIO.output(IN4, GPIO.HIGH)
+    stop_motor_after_timeout()
 
-mqtt_client.subscribe(topic, 1, on_message)
+def motor_stop():
+    for pin in [IN1, IN2, IN3, IN4]:
+        GPIO.output(pin, GPIO.LOW)
 
-# --- Step 5: Main loop ---
+# Obstacle monitoring
+def monitor_obstacles():
+    while True:
+        front, back = shared_distances[0], shared_distances[1]
+        blocked_directions[0] = 1 if front < DISTANCE_THRESHOLD else 0
+        blocked_directions[1] = 1 if back < DISTANCE_THRESHOLD else 0
+        print(f"📏 Front: {front:.2f}, Back: {back:.2f} | Blocked: {blocked_directions[:]}")
+        time.sleep(0.5)
+
+# MQTT Callbacks
+def customCallback(client, userdata, message):
+    global motor_timer
+    payload = message.payload.decode()
+    print(f"📩 Received: {payload}")
+
+    if payload == '{"key":"ArrowUp"}':
+        if blocked_directions[0]:
+            print("🚫 Obstacle ahead.")
+            motor_stop()
+            return
+        motor_forward()
+    elif payload == '{"key":"ArrowDown"}':
+        if blocked_directions[1]:
+            print("🚫 Obstacle behind.")
+            motor_stop()
+            return
+        motor_backward()
+    elif payload == '{"key":"ArrowLeft"}':
+        motor_left()
+    elif payload == '{"key":"ArrowRight"}':
+        motor_right()
+    else:
+        print("❓ Unknown command. Stopping.")
+        motor_stop()
+        if motor_timer:
+            motor_timer.cancel()
+
+# Start distance measuring and obstacle threads
+ultrasonic_process = multiprocessing.Process(target=measure_distance, args=(shared_distances,))
+ultrasonic_process.start()
+
+obstacle_process = multiprocessing.Process(target=monitor_obstacles)
+obstacle_process.start()
+
+# Connect and subscribe
 try:
+    print("🔗 Connecting to AWS IoT Core...")
+    client.connect()
+    print("✅ Connected.")
+    client.subscribe(TOPIC, 1, customCallback)
+
     while True:
         time.sleep(1)
+
 except KeyboardInterrupt:
-    print("🛑 Interrupted. Disconnecting...")
+    print("\n🛑 Keyboard Interrupt received.")
+
 finally:
-    mqtt_client.disconnect()
-    print("✅ Disconnected.")
+    motor_stop()
+    GPIO.cleanup()
+    ultrasonic_process.terminate()
+    obstacle_process.terminate()
+    print("✅ Cleanup complete.")

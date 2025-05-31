@@ -5,7 +5,7 @@ import threading
 import multiprocessing
 import paho.mqtt.client as mqtt
 import json
-from ultrasonic_thread import measure_distance
+from ultrasonic_thread2 import measure_distance
 
 # Motor GPIO pins
 IN1, IN2 = 13, 27
@@ -118,10 +118,22 @@ def monitor_obstacles():
 def on_connect(client, userdata, flags, rc, properties=None):
     if rc == 0:
         print("✅ Connected to AWS IoT Core")
-        client.subscribe(MQTT_TOPIC)
-        print(f"📡 Subscribed to topic: {MQTT_TOPIC}")
+        result, mid = client.subscribe(MQTT_TOPIC)
+        if result == mqtt.MQTT_ERR_SUCCESS:
+            print(f"📡 Successfully subscribed to topic: {MQTT_TOPIC}")
+        else:
+            print(f"❌ Failed to subscribe to topic: {MQTT_TOPIC}, error code: {result}")
     else:
         print(f"❌ MQTT connection failed with code {rc}")
+
+def on_subscribe(client, userdata, mid, granted_qos):
+    print(f"✅ Subscription confirmed for message ID: {mid}, QoS: {granted_qos}")
+
+def on_disconnect(client, userdata, rc):
+    if rc != 0:
+        print(f"❌ Unexpected disconnection from MQTT broker, code: {rc}")
+    else:
+        print("✅ Disconnected from MQTT broker")
 
 def on_message(client, userdata, msg):
     global motor_timer
@@ -157,6 +169,8 @@ def on_message(client, userdata, msg):
 # MQTT Client Setup
 client = mqtt.Client()
 client.on_connect = on_connect
+client.on_subscribe = on_subscribe
+client.on_disconnect = on_disconnect
 client.on_message = on_message
 
 # Launch background processes

@@ -1,8 +1,8 @@
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.edge.service import Service as EdgeService
-from selenium.webdriver.edge.options import Options as EdgeOptions
+from selenium.webdriver.chrome.service import Service as ChromeService
+from selenium.webdriver.chrome.options import Options as ChromeOptions
 import time
 import json
 import os
@@ -122,7 +122,7 @@ def start_robot_control():
     try:
         print("🤖 Starting robot control script...")
         # Start the robot control script as a subprocess
-        subprocess.Popen([sys.executable, "ultrasonic_thread.py"])
+        subprocess.Popen([sys.executable, "robot_control.py"])
         print("✅ Robot control script started successfully")
         return True
     except Exception as e:
@@ -202,20 +202,20 @@ def wait_for_mqtt_message (driver, robot_id, timeout=18000):
     return None
 
 def setup_webdriver():
-    """Setup and return Edge WebDriver"""
+    """Setup and return Chrome WebDriver"""
     try:
-        edge_options = EdgeOptions()
-        edge_options.add_argument("--disable-gpu")
-        edge_options.add_argument("--no-sandbox")
-        edge_options.add_argument("--disable-dev-shm-usage")
-        edge_options.add_argument("--disable-web-security")
-        edge_options.add_argument("--allow-running-insecure-content")
+        chrome_options = ChromeOptions()
+        chrome_options.add_argument("--disable-gpu")
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--disable-dev-shm-usage")
+        chrome_options.add_argument("--disable-web-security")
+        chrome_options.add_argument("--allow-running-insecure-content")
         
         # Uncomment for headless mode
-        # edge_options.add_argument("--headless")
+        # chrome_options.add_argument("--headless")
         
-        service = EdgeService("C:/Users/ravin/Downloads/edgedriver_win64/msedgedriver.exe")
-        driver = webdriver.Edge(service=service, options=edge_options)
+        service = ChromeService("C:/Users/ravin/Downloads/chromedriver_win64/chromedriver.exe")
+        driver = webdriver.Chrome(service=service, options=chrome_options)
         driver.set_page_load_timeout(30)
         return driver
     except Exception as e:

@@ -104,7 +104,7 @@ def extract_mqtt_credentials(data, robot_id):
             "robotId": robot_id,
             "token": data.get("user", {}).get("token"),
             "timestamp": data.get("timestamp"),
-            "topic": data.get("topic"),  # Generated topic based on robot ID
+            "topic": data.get("user", {}).get("topic"),  # Generated topic based on robot ID
             "extracted_at": time.time()
         }
         

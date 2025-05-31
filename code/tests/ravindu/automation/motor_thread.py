@@ -29,7 +29,7 @@ with open("mqtt_data_log.json", "r") as f:
     credentials = data["data"]["user"]
     token = credentials["token"]
 
-# AWS MQTT settings
+# AWS MQTT settings 
 ACCESS_KEY = credentials["accessKeyId"]
 SECRET_KEY = credentials["secretAccessKey"]
 SESSION_TOKEN = credentials["sessionToken"]

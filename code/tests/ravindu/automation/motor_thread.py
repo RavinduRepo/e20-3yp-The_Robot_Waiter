@@ -26,9 +26,9 @@ ROBOT_CREDENTIALS_FILE = "robot_mqtt_credentials.json"
 AWS_ENDPOINT = "a2cdp9hijgdiig-ats.iot.ap-southeast-2.amazonaws.com"
 THING_NAME = "3yp-device2"
 FALLBACK_MQTT_TOPIC = "#"
-CERT_FILE = "../../cert/567ac5f9b0348408455bfc91506042fe17270e042a0499705711a24c5c7a6883-certificate.pem.crt"
-KEY_FILE = "../../cert/567ac5f9b0348408455bfc91506042fe17270e042a0499705711a24c5c7a6883-private.pem.key"
-CA_CERT = "../../cert/AmazonRootCA1.pem"
+CERT_FILE = "../../../cert/567ac5f9b0348408455bfc91506042fe17270e042a0499705711a24c5c7a6883-certificate.pem.crt"
+KEY_FILE = "../../../cert/567ac5f9b0348408455bfc91506042fe17270e042a0499705711a24c5c7a6883-private.pem.key"
+CA_CERT = "../../../cert/AmazonRootCA1.pem"
 
 distence = 50
 

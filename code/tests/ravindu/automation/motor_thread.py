@@ -5,7 +5,7 @@ import threading
 import multiprocessing
 import paho.mqtt.client as mqtt
 import json
-from ultrasonic_thread2 import measure_distance
+from ultrasonic_thread import measure_distance
 
 # Motor GPIO pins
 IN1, IN2 = 13, 27

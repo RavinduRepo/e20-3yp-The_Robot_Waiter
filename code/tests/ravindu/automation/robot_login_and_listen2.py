@@ -82,8 +82,8 @@ def store_data_locally(data):
         with open(WEBSOCKET_DATA_FILE, "w") as file:
             json.dump(data, file, indent=2)
         
-        # Append to log file with timestamp
-        with open(MQTT_LOG_FILE, "a") as log_file:
+        # Write to log file with timestamp
+        with open(MQTT_LOG_FILE, "w") as log_file:
             log_entry = {
                 "timestamp": time.time(),
                 "formatted_time": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),

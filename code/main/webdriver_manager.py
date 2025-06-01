@@ -110,53 +110,29 @@ def close_websocket_connection(driver):
         print(f"❌ Error closing WebSocket connection: {e}")
         return False
 
-def prompt_user_credentials_via_web(driver):
-    """
-    Prompt the user to enter robot credentials via a web interface.
-    """
+def collect_credentials_from_web(driver):
+    """Redirect user to a web interface to enter credentials and collect them"""
     try:
-        # Load a simple HTML page for user input
-        html_content = """
-        <html>
-        <head><title>Enter Robot Credentials</title></head>
-        <body>
-            <h1>Enter Robot Credentials</h1>
-            <form id="credentialsForm">
-                <label for="robotId">Robot ID:</label><br>
-                <input type="text" id="robotId" name="robotId"><br><br>
-                <label for="password">Password:</label><br>
-                <input type="password" id="password" name="password"><br><br>
-                <button type="button" onclick="submitCredentials()">Submit</button>
-            </form>
-            <script>
-                function submitCredentials() {
-                    const robotId = document.getElementById('robotId').value;
-                    const password = document.getElementById('password').value;
-                    if (robotId && password) {
-                        alert('Credentials submitted successfully!');
-                        window.location.href = `data:text/plain,${robotId},${password}`;
-                    } else {
-                        alert('Please fill in both fields.');
-                    }
-                }
-            </script>
-        </body>
-        </html>
-        """
-        driver.get("data:text/html;charset=utf-8," + html_content)
-        
-        # Wait for user to submit credentials
+        server_ip = load_server_config()
+        if not server_ip:
+            print("❌ Server IP not configured. Exiting...")
+            return None, None
+
+        print("🌐 Redirecting to credentials setup page...")
+        driver.get(f"http://{server_ip}:5001/robot-setup")
+        time.sleep(3)
+
+        print("🔍 Waiting for user to enter credentials...")
         while True:
-            current_url = driver.current_url
-            if current_url.startswith("data:text/plain,"):
-                credentials = current_url.split(",")[1:]
-                if len(credentials) == 2:
-                    return credentials[0], credentials[1]
-                break
-            time.sleep(1)
-        
-        print("❌ User did not provide valid credentials.")
-        return None, None
+            robot_id = driver.execute_script("return document.getElementById('robotIdInput')?.value || '';").strip()
+            password = driver.execute_script("return document.getElementById('passwordInput')?.value || '';").strip()
+            
+            if robot_id and password:
+                print("✅ Credentials entered by user")
+                return robot_id, password
+            
+            time.sleep(2)  # Poll every 2 seconds
+
     except Exception as e:
-        print(f"❌ Error during credential input: {e}")
+        print(f"❌ Error collecting credentials from web: {e}")
         return None, None

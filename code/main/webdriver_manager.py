@@ -111,7 +111,7 @@ def close_websocket_connection(driver):
         return False
 
 def collect_credentials_from_web(driver):
-    """Redirect user to a web interface to enter credentials and collect them"""
+    """Redirect user to a web interface to enter credentials and collect them after form submission."""
     try:
         server_ip = load_server_config()
         if not server_ip:
@@ -120,18 +120,35 @@ def collect_credentials_from_web(driver):
 
         print("🌐 Redirecting to credentials setup page...")
         driver.get(f"http://{server_ip}:5001/robot-login")
-        time.sleep(3)
+        time.sleep(2)  # Give the page time to load
 
-        print("🔍 Waiting for user to enter credentials...")
+        # Inject JavaScript to flag when form is submitted
+        driver.execute_script("""
+            if (!window.__credentialsCollected) {
+                window.__credentialsCollected = false;
+                const form = document.querySelector('form.login-form');
+                form.addEventListener('submit', function(event) {
+                    event.preventDefault(); // prevent actual submission (optional)
+                    window.__credentialsCollected = true;
+                });
+            }
+        """)
+
+        print("🔍 Waiting for user to submit the login form...")
+
         while True:
-            robot_id = driver.execute_script("return document.getElementById('Robot ID')?.value || '';").strip()
-            password = driver.execute_script("return document.getElementById('Password')?.value || '';").strip()
+            is_submitted = driver.execute_script("return window.__credentialsCollected;")
+            if is_submitted:
+                robot_id = driver.execute_script("return document.querySelector('input[placeholder=\"Robot ID\"]').value || '';").strip()
+                password = driver.execute_script("return document.querySelector('input[placeholder=\"Password\"]').value || '';").strip()
+                
+                if robot_id and password:
+                    print("✅ Credentials submitted by user")
+                    return robot_id, password
+                else:
+                    print("⚠️ Form submitted but fields are empty. Waiting...")
             
-            if robot_id and password:
-                print("✅ Credentials entered by user")
-                return robot_id, password
-            
-            time.sleep(2)  # Poll every 2 seconds
+            time.sleep(1)
 
     except Exception as e:
         print(f"❌ Error collecting credentials from web: {e}")

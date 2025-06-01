@@ -321,6 +321,7 @@ def setup_webdriver():
         chrome_options.add_argument("--disable-background-timer-throttling")
         chrome_options.add_argument("--disable-backgrounding-occluded-windows")
         chrome_options.add_argument("--disable-renderer-backgrounding")
+        chrome_options.add_argument("--start-fullscreen")
         
         # Uncomment for headless mode (recommended for Raspberry Pi)
         # chrome_options.add_argument("--headless")
@@ -329,6 +330,10 @@ def setup_webdriver():
         service = ChromeService("/usr/bin/chromedriver")
         driver = webdriver.Chrome(service=service, options=chrome_options)
         driver.set_page_load_timeout(30)
+        
+        # Additional fullscreen setup
+        driver.maximize_window()
+        
         return driver
     except Exception as e:
         print(f"❌ Failed to setup WebDriver: {e}")

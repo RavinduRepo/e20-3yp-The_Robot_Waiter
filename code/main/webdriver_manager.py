@@ -24,14 +24,15 @@ def setup_webdriver():
         chrome_options.add_argument("--disable-renderer-backgrounding")
         chrome_options.add_argument("--start-fullscreen")
         chrome_options.add_argument("--enable-automation")
-
+        chrome_options.add_argument("--disable-infobars")  # Remove "Chrome is being controlled" message
+        chrome_options.add_argument("--disable-blink-features=AutomationControlled")  # Suppress automation detection
         
         # Uncomment for headless mode (recommended for Raspberry Pi)
         # chrome_options.add_argument("--headless")
-        #####
+        
         user_data_dir = tempfile.mkdtemp()
         chrome_options.add_argument(f"--user-data-dir={user_data_dir}")
-        #####
+        
         # Use system-installed chromedriver
         service = ChromeService("/usr/bin/chromedriver")
         driver = webdriver.Chrome(service=service, options=chrome_options)
@@ -39,6 +40,15 @@ def setup_webdriver():
         
         # Additional fullscreen setup
         driver.fullscreen_window()
+        
+        # Suppress automation detection
+        driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
+            "source": """
+                Object.defineProperty(navigator, 'webdriver', {
+                    get: () => undefined
+                });
+            """
+        })
         
         return driver
     except Exception as e:

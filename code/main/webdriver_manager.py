@@ -119,7 +119,7 @@ def collect_credentials_from_web(driver):
             return None, None
 
         print("🌐 Redirecting to credentials setup page...")
-        driver.get(f"http://{server_ip}:5001/robot-setup")
+        driver.get(f"http://{server_ip}:5001/robot-login")
         time.sleep(3)
 
         print("🔍 Waiting for user to enter credentials...")

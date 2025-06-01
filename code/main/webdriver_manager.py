@@ -16,7 +16,6 @@ def setup_webdriver():
         chrome_options.add_argument("--disable-gpu")
         chrome_options.add_argument("--no-sandbox")
         chrome_options.add_argument("--disable-dev-shm-usage")
-        chrome_options.add_argument("disable-infobars")
         chrome_options.add_argument("--disable-web-security")
         chrome_options.add_argument("--allow-running-insecure-content")
         chrome_options.add_argument("--disable-extensions")
@@ -24,6 +23,8 @@ def setup_webdriver():
         chrome_options.add_argument("--disable-backgrounding-occluded-windows")
         chrome_options.add_argument("--disable-renderer-backgrounding")
         chrome_options.add_argument("--start-fullscreen")
+        chrome_options.add_argument("--disable-infobars")
+
         
         # Uncomment for headless mode (recommended for Raspberry Pi)
         # chrome_options.add_argument("--headless")

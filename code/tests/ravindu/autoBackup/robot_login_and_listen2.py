@@ -464,7 +464,7 @@ def main_robot_process():
         time.sleep(3)
         
         # Check WebSocket connection
-        max_websocket_retries = 5
+        max_websocket_retries = 50
         websocket_ready = False
         
         for attempt in range(max_websocket_retries):

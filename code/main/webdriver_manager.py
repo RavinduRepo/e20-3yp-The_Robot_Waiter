@@ -22,8 +22,7 @@ def setup_webdriver():
         chrome_options.add_argument("--disable-background-timer-throttling")
         chrome_options.add_argument("--disable-backgrounding-occluded-windows")
         chrome_options.add_argument("--disable-renderer-backgrounding")
-        # chrome_options.add_argument("--start-fullscreen")
-        chrome_options.add_argument("--kiosk")
+        chrome_options.add_argument("--start-fullscreen")
         
         # Uncomment for headless mode (recommended for Raspberry Pi)
         # chrome_options.add_argument("--headless")
@@ -37,7 +36,7 @@ def setup_webdriver():
         driver.set_page_load_timeout(30)
         
         # Additional fullscreen setup
-        driver.maximize_window()
+        driver.fullscreen_window()
         
         return driver
     except Exception as e:

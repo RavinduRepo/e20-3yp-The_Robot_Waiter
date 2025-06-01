@@ -2,3 +2,5 @@
 code/cert/
 venv/
 code/tests/ravindu/automation/*.json
+code/tests/ravindu/automation2/*.json
+code/tests/ravindu/autoBackup/*.json

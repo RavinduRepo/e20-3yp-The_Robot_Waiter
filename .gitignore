@@ -1,3 +1,4 @@
 # Ignore cert folder
 code/cert/
 venv/
+code/tests/ravindu/automation/*.json

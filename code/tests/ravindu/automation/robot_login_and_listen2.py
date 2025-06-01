@@ -233,6 +233,22 @@ def get_data_locally():
         print(f"Error retrieving WebSocket data locally: {e}")
         return None
 
+def close_websocket_connection(driver):
+    """Close only the WebSocket connection, keep browser open"""
+    try:
+        print("🔌 Closing WebSocket connection...")
+        driver.execute_script("""
+            if (window.webSocketManager && window.webSocketManager.ws) {
+                window.webSocketManager.ws.close();
+                console.log('WebSocket connection closed');
+            }
+        """)
+        print("✅ WebSocket connection closed, browser remains open")
+        return True
+    except Exception as e:
+        print(f"❌ Error closing WebSocket connection: {e}")
+        return False
+
 def wait_for_mqtt_message(driver, robot_id, timeout=18000):
     """Event-driven wait for MQTT authentication message."""
     print(f"🔄 Waiting for MQTT message for robot {robot_id}...")
@@ -475,16 +491,14 @@ def main_robot_process():
                 if start_robot_control():
                     print("🤖 Robot control is now active!")
                     
-                    # Close WebSocket connection since we no longer need it
-                    print("🔌 Closing WebSocket connection...")
-                    driver.quit()
-                    driver = None
+                    # Close only WebSocket connection, keep browser open
+                    close_websocket_connection(driver)
                     
                     print("✅ System is now running in MQTT-only mode")
                     print("📡 Robot will wait for disconnect/reconnect commands via MQTT")
                     
                     # Wait for system commands or manual interrupt
-                    return wait_for_system_commands()
+                    return wait_for_system_commands(driver)
                 else:
                     print("⚠️ Failed to start robot control, but credentials are saved")
             
@@ -506,7 +520,7 @@ def main_robot_process():
             except:
                 pass  # Ignore errors when closing driver
 
-def wait_for_system_commands():
+def wait_for_system_commands(driver):
     """Wait for disconnect/reconnect commands or manual interrupt"""
     global motor_process, system_state
     
@@ -526,7 +540,13 @@ def wait_for_system_commands():
             
             if not current_state.get("connected", False):
                 print("📡 Disconnect command received via MQTT")
-                break
+                # Close browser and restart entire process
+                print("🔒 Closing browser for full restart...")
+                try:
+                    driver.quit()
+                except:
+                    pass
+                return False  # This will cause main() to restart the entire process
             
             time.sleep(5)  # Check every 5 seconds
             

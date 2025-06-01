@@ -5,7 +5,7 @@ import sys
 import traceback
 import os
 from config_manager import (
-    load_robot_config, get_user_credentials, load_system_state,
+    load_robot_config, get_user_credentials, load_system_state, save_robot_config,
     CONFIG_FILE, WEBSOCKET_DATA_FILE, MQTT_LOG_FILE, 
     ROBOT_CREDENTIALS_FILE, SYSTEM_STATE_FILE
 )

@@ -16,7 +16,7 @@ from process_manager import (
 )
 from webdriver_manager import (
     setup_webdriver, perform_login, check_websocket_connection,
-    close_websocket_connection
+    close_websocket_connection, prompt_user_credentials_via_web
 )
 from mqtt_monitor import wait_for_mqtt_message
 
@@ -46,18 +46,25 @@ def main_robot_process():
             password = config['password']
             print(f"✅ Using saved credentials for Robot ID: {robot_id}")
         else:
-            print("🔧 No valid configuration found. Setting up new credentials...")
-            robot_id, password = get_user_credentials()
+            print("🔧 No valid configuration found. Prompting user for credentials via web interface...")
+            
+            # Setup WebDriver for user interaction
+            driver = setup_webdriver()
+            
+            # Prompt user for credentials via web interface
+            robot_id, password = prompt_user_credentials_via_web(driver)
             
             if not robot_id or not password:
                 print("❌ Invalid credentials provided. Exiting...")
                 return False
-
+            
+            # Save the credentials for future use
+            with open(CONFIG_FILE, 'w') as config_file:
+                json.dump({'robotId': robot_id, 'password': password}, config_file)
+                print("✅ Credentials saved successfully.")
+        
         print(f"\n🚀 Starting robot monitoring process for: {robot_id}")
         print("=" * 60)
-        
-        # Setup WebDriver
-        driver = setup_webdriver()
         
         # Perform login
         if not perform_login(driver, robot_id, password):

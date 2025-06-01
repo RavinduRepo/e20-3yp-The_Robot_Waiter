@@ -6,7 +6,7 @@ from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.chrome.options import Options as ChromeOptions
 import time
 from config_manager import load_server_config
-# import tempfile#####
+import tempfile#####
 
 
 def setup_webdriver():
@@ -27,8 +27,8 @@ def setup_webdriver():
         # Uncomment for headless mode (recommended for Raspberry Pi)
         # chrome_options.add_argument("--headless")
         #####
-        # user_data_dir = tempfile.mkdtemp()
-        # chrome_options.add_argument(f"--user-data-dir={user_data_dir}")
+        user_data_dir = tempfile.mkdtemp()
+        chrome_options.add_argument(f"--user-data-dir={user_data_dir}")
         #####
         # Use system-installed chromedriver
         service = ChromeService("/usr/bin/chromedriver")

@@ -295,7 +295,7 @@ def main():
         # === Setup AWSIoTPythonSDK MQTT Client with WebSocket ===
         mqtt_client = AWSIoTMQTTClient("pythonClient", useWebsocket=True)
         mqtt_client.configureEndpoint(endpoint, 443)
-        mqtt_client.configureCredentials("../../../cert/AmazonRootCA1.pem")  # Only the CA is needed for WebSocket
+        mqtt_client.configureCredentials("../cert/AmazonRootCA1.pem")  # Only the CA is needed for WebSocket
 
         # Configure credentials
         mqtt_client.configureIAMCredentials(aws_access_key, aws_secret_key, aws_session_token)

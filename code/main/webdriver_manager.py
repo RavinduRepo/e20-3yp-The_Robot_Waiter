@@ -124,8 +124,8 @@ def collect_credentials_from_web(driver):
 
         print("🔍 Waiting for user to enter credentials...")
         while True:
-            robot_id = driver.execute_script("return document.getElementById('robotIdInput')?.value || '';").strip()
-            password = driver.execute_script("return document.getElementById('passwordInput')?.value || '';").strip()
+            robot_id = driver.execute_script("return document.getElementById('Robot ID')?.value || '';").strip()
+            password = driver.execute_script("return document.getElementById('Password')?.value || '';").strip()
             
             if robot_id and password:
                 print("✅ Credentials entered by user")

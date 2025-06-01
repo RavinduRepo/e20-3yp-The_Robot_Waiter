@@ -23,7 +23,7 @@ def setup_webdriver():
         chrome_options.add_argument("--disable-backgrounding-occluded-windows")
         chrome_options.add_argument("--disable-renderer-backgrounding")
         chrome_options.add_argument("--start-fullscreen")
-        chrome_options.add_argument("--disable-infobars")
+        chrome_options.add_argument("--enable-automation")
 
         
         # Uncomment for headless mode (recommended for Raspberry Pi)

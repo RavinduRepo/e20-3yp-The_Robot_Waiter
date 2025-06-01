@@ -23,13 +23,7 @@ def setup_webdriver():
         chrome_options.add_argument("--disable-backgrounding-occluded-windows")
         chrome_options.add_argument("--disable-renderer-backgrounding")
         chrome_options.add_argument("--start-fullscreen")
-        chrome_options.add_argument("--enable-automation")
         
-        # Remove "Chrome is being controlled by automated test software" message
-        chrome_options.add_argument("--disable-blink-features=AutomationControlled")
-        chrome_options.add_experimental_option("useAutomationExtension", False)
-        chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
-
         
         # Uncomment for headless mode (recommended for Raspberry Pi)
         # chrome_options.add_argument("--headless")
@@ -41,9 +35,6 @@ def setup_webdriver():
         service = ChromeService("/usr/bin/chromedriver")
         driver = webdriver.Chrome(service=service, options=chrome_options)
         driver.set_page_load_timeout(30)
-        
-        # Additional step to remove automation detection
-        driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
         
         # Additional fullscreen setup
         driver.fullscreen_window()

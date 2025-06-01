@@ -130,10 +130,7 @@ def main_robot_process():
                 pass  # Ignore errors when closing driver
 
 def main():
-    """Main function with auto-restart capability"""
-    max_retries = 3
-    retry_count = 0
-    
+    """Main function with indefinite retry capability"""
     print("🤖 Robot MQTT Monitor Starting...")
     print(f"📁 Config file: {CONFIG_FILE}")
     print(f"📁 Data files: {WEBSOCKET_DATA_FILE}, {MQTT_LOG_FILE}")
@@ -143,9 +140,9 @@ def main():
     # Cleanup any existing processes on startup
     stop_robot_control()
     
-    while retry_count < max_retries:
+    while True:  # Retry indefinitely
         try:
-            print(f"\n🔄 Attempt {retry_count + 1}/{max_retries}")
+            print("\n🔄 Starting main robot process...")
             
             success = main_robot_process()
             
@@ -155,11 +152,8 @@ def main():
                 print("🔄 Waiting for new connection...")
                 continue  # Loop back to wait for new connection
             else:
-                retry_count += 1
-                if retry_count < max_retries:
-                    wait_time = 10 * retry_count  # Increasing wait time
-                    print(f"⏳ Waiting {wait_time} seconds before retry...")
-                    time.sleep(wait_time)
+                print("⚠️ Process failed. Retrying...")
+                time.sleep(10)  # Wait before retrying
                 
         except KeyboardInterrupt:
             print("\n🛑 Process interrupted by user")
@@ -168,16 +162,8 @@ def main():
         except Exception as e:
             print(f"💥 Unexpected error: {e}")
             traceback.print_exc()
-            retry_count += 1
-            
-            if retry_count < max_retries:
-                wait_time = 15 * retry_count
-                print(f"⏳ Waiting {wait_time} seconds before retry...")
-                time.sleep(wait_time)
-    
-    if retry_count >= max_retries:
-        print(f"❌ Process failed after {max_retries} attempts")
-        sys.exit(1)
+            print("⚠️ Retrying after unexpected error...")
+            time.sleep(15)  # Wait before retrying
     
     print("🏁 Robot MQTT Monitor finished")
 

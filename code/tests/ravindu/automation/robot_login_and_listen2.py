@@ -20,11 +20,11 @@ WEBSOCKET_DATA_FILE = "websocket_data.json"
 MQTT_LOG_FILE = "mqtt_data_log.json"
 ROBOT_CREDENTIALS_FILE = "robot_mqtt_credentials.json"
 SERVER_CONFIG_FILE = "server_config.json"
-PROCESS_STATE_FILE = "robot_process_state.json"
+SYSTEM_STATE_FILE = "system_state.json"
 
 # Global variables for process management
-robot_processes = {}
-connection_state = {"connected": False, "last_credentials": None}
+motor_process = None
+system_state = {"connected": False, "processes": []}
 
 def load_robot_config():
     """Load robot credentials from config file"""
@@ -57,26 +57,23 @@ def save_robot_config(robot_id, password):
         print(f"Error saving configuration: {e}")
         return False
 
-def save_process_state(state):
-    """Save current process state to file"""
+def save_system_state(state):
+    """Save current system state"""
     try:
-        with open(PROCESS_STATE_FILE, "w") as file:
+        with open(SYSTEM_STATE_FILE, "w") as file:
             json.dump(state, file, indent=2)
-        return True
     except Exception as e:
-        print(f"Error saving process state: {e}")
-        return False
+        print(f"Error saving system state: {e}")
 
-def load_process_state():
-    """Load process state from file"""
+def load_system_state():
+    """Load system state"""
     try:
-        if os.path.exists(PROCESS_STATE_FILE):
-            with open(PROCESS_STATE_FILE, "r") as file:
+        if os.path.exists(SYSTEM_STATE_FILE):
+            with open(SYSTEM_STATE_FILE, "r") as file:
                 return json.load(file)
-        return {"connected": False, "last_credentials": None}
     except Exception as e:
-        print(f"Error loading process state: {e}")
-        return {"connected": False, "last_credentials": None}
+        print(f"Error loading system state: {e}")
+    return {"connected": False, "processes": []}
 
 def get_user_credentials():
     """Get robot credentials from user input"""
@@ -133,7 +130,7 @@ def extract_mqtt_credentials(data, robot_id):
             "robotId": robot_id,
             "token": data.get("user", {}).get("token"),
             "timestamp": data.get("timestamp"),
-            "topic": data.get("user", {}).get("topic"),
+            "topic": data.get("user", {}).get("topic"),  # Generated topic based on robot ID
             "extracted_at": time.time()
         }
         
@@ -141,137 +138,86 @@ def extract_mqtt_credentials(data, robot_id):
             json.dump(credentials, file, indent=2)
         
         print(f"✓ MQTT credentials extracted and saved to {ROBOT_CREDENTIALS_FILE}")
-        return credentials
+        return True
     except Exception as e:
         print(f"✗ Error extracting MQTT credentials: {e}")
-        return None
-
-def stop_robot_processes():
-    """Stop all robot-related processes"""
-    global robot_processes
-    
-    print("🛑 Stopping all robot processes...")
-    
-    stopped_processes = []
-    
-    for process_name, process in robot_processes.items():
-        try:
-            if process and process.poll() is None:  # Process is still running
-                print(f"🔄 Stopping {process_name}...")
-                process.terminate()
-                
-                # Wait up to 5 seconds for graceful termination
-                try:
-                    process.wait(timeout=5)
-                    stopped_processes.append(process_name)
-                    print(f"✅ {process_name} stopped gracefully")
-                except subprocess.TimeoutExpired:
-                    # Force kill if necessary
-                    process.kill()
-                    process.wait()
-                    stopped_processes.append(process_name)
-                    print(f"⚡ {process_name} force-killed")
-            else:
-                print(f"ℹ️ {process_name} was not running")
-                
-        except Exception as e:
-            print(f"❌ Error stopping {process_name}: {e}")
-    
-    # Clear the process dictionary
-    robot_processes.clear()
-    
-    # Update connection state
-    connection_state["connected"] = False
-    save_process_state(connection_state)
-    
-    print(f"🏁 Stopped processes: {', '.join(stopped_processes) if stopped_processes else 'None'}")
-    return len(stopped_processes) > 0
+        return False
 
 def start_robot_control():
     """Start the robot control script"""
-    global robot_processes
-    
+    global motor_process, system_state
     try:
         print("🤖 Starting robot control script...")
-        
-        # Start the motor control script
+        # Start the robot control script as a subprocess
         motor_process = subprocess.Popen([sys.executable, "motor_thread.py"])
-        robot_processes["motor_thread"] = motor_process
+        system_state["connected"] = True
+        system_state["processes"] = [motor_process.pid]
+        save_system_state(system_state)
         
         print("✅ Robot control script started successfully")
-        
-        # Update connection state
-        connection_state["connected"] = True
-        save_process_state(connection_state)
-        
         return True
-        
     except Exception as e:
         print(f"❌ Failed to start robot control script: {e}")
         return False
 
-def handle_connect_message(data, robot_id):
-    """Handle connect-type MQTT message"""
-    print("🔌 Processing CONNECT message...")
-    
-    # Stop any existing processes first
-    stop_robot_processes()
-    
-    # Store data and extract credentials
-    if store_data_locally(data):
-        credentials = extract_mqtt_credentials(data, robot_id)
-        if credentials:
-            connection_state["last_credentials"] = credentials
-            save_process_state(connection_state)
+def stop_robot_control():
+    """Stop all robot control processes"""
+    global motor_process, system_state
+    try:
+        print("🛑 Stopping robot control processes...")
+        
+        if motor_process and motor_process.poll() is None:
+            # Send termination signal to motor process
+            motor_process.terminate()
+            try:
+                motor_process.wait(timeout=10)  # Wait up to 10 seconds
+            except subprocess.TimeoutExpired:
+                print("⚠️ Process didn't terminate gracefully, forcing kill...")
+                motor_process.kill()
+                motor_process.wait()
+        
+        # Clean up any remaining processes
+        for pid in system_state.get("processes", []):
+            try:
+                os.kill(pid, signal.SIGTERM)
+                time.sleep(1)
+                os.kill(pid, signal.SIGKILL)  # Force kill if still running
+            except ProcessLookupError:
+                pass  # Process already terminated
+            except Exception as e:
+                print(f"⚠️ Error terminating process {pid}: {e}")
+        
+        # Clear credentials and state
+        if os.path.exists(ROBOT_CREDENTIALS_FILE):
+            os.remove(ROBOT_CREDENTIALS_FILE)
+        if os.path.exists(MQTT_LOG_FILE):
+            os.remove(MQTT_LOG_FILE)
+        if os.path.exists(WEBSOCKET_DATA_FILE):
+            os.remove(WEBSOCKET_DATA_FILE)
             
-            # Start robot control
-            if start_robot_control():
-                print("🎉 Robot connected and control active!")
-                return True
-            else:
-                print("⚠️ Failed to start robot control")
-                return False
-        else:
-            print("❌ Failed to extract MQTT credentials")
-            return False
-    else:
-        print("❌ Failed to store WebSocket data")
-        return False
-
-def handle_disconnect_message(data, robot_id):
-    """Handle disconnect-type MQTT message"""
-    print("🔌 Processing DISCONNECT message...")
-    
-    # Stop all robot processes
-    if stop_robot_processes():
-        print("✅ Robot disconnected successfully - all processes stopped")
-    else:
-        print("ℹ️ Robot disconnect complete - no active processes found")
-    
-    return True
-
-def handle_reconnect_message(data, robot_id):
-    """Handle reconnect-type MQTT message"""
-    print("🔄 Processing RECONNECT message...")
-    
-    # Load last known credentials
-    last_credentials = connection_state.get("last_credentials")
-    
-    if not last_credentials:
-        print("❌ No previous credentials found - cannot reconnect")
-        return False
-    
-    print(f"📋 Using last known credentials from {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(last_credentials['extracted_at']))}")
-    
-    # Stop any existing processes first
-    stop_robot_processes()
-    
-    # Use existing credentials without re-extracting
-    if start_robot_control():
-        print("🎉 Robot reconnected successfully using existing credentials!")
+        system_state = {"connected": False, "processes": []}
+        save_system_state(system_state)
+        
+        motor_process = None
+        print("✅ Robot control stopped and cleaned up")
         return True
-    else:
-        print("❌ Failed to reconnect robot control")
+        
+    except Exception as e:
+        print(f"❌ Error stopping robot control: {e}")
+        return False
+
+def restart_robot_control():
+    """Restart robot control using existing credentials"""
+    try:
+        if not os.path.exists(ROBOT_CREDENTIALS_FILE):
+            print("❌ No existing credentials found for restart")
+            return False
+            
+        print("🔄 Restarting robot control with existing credentials...")
+        return start_robot_control()
+        
+    except Exception as e:
+        print(f"❌ Error restarting robot control: {e}")
         return False
 
 def get_data_locally():
@@ -288,61 +234,46 @@ def get_data_locally():
         return None
 
 def wait_for_mqtt_message(driver, robot_id, timeout=18000):
-    """Event-driven wait for MQTT authentication message with disconnect/reconnect support."""
-    print(f"🔄 Waiting for MQTT messages for robot {robot_id}...")
+    """Event-driven wait for MQTT authentication message."""
+    print(f"🔄 Waiting for MQTT message for robot {robot_id}...")
     print(f"⏰ Timeout set to {timeout//3600} hours")
 
     from threading import Event, Thread
     import time
 
-    result = {"data": None, "continue_monitoring": True}
+    result = {"data": None}
     done = Event()
 
     def watch_local_storage():
         check_count = 0
-        last_processed_data = None
-        
-        while not done.is_set() and result["continue_monitoring"]:
+        while not done.is_set():
             try:
                 websocket_data = driver.execute_script("return localStorage.getItem('webSocketData');")
 
                 if websocket_data:
                     data = json.loads(websocket_data)
-                    
-                    # Skip if we've already processed this exact message
-                    if data == last_processed_data:
-                        time.sleep(2)
-                        continue
-                    
-                    message_type = data.get("type", "").lower()
-                    
-                    if message_type == "connect" and data.get("user") and data["user"].get("token"):
-                        print(f"\n📨 CONNECT message received: {data}")
-                        last_processed_data = data
+
+                    if data.get("type") == "connect" and data.get("user") and data["user"].get("token"):
+                        print(f"\n📨 WebSocket data received: {data}")
+                        print("🎉 MQTT authentication message received!")
+                        print(f"🔑 ID Token: {data['user']['token'][:20]}...")
+                        print(f"⏱️ Timestamp: {data.get('timestamp')}")
                         
-                        if handle_connect_message(data, robot_id):
+                        if store_data_locally(data):
                             result["data"] = data
-                        
-                    elif message_type == "disconnect":
-                        print(f"\n📨 DISCONNECT message received: {data}")
-                        last_processed_data = data
-                        
-                        handle_disconnect_message(data, robot_id)
-                        # Continue monitoring for reconnect
-                        
-                    elif message_type == "reconnect":
-                        print(f"\n📨 RECONNECT message received: {data}")
-                        last_processed_data = data
-                        
-                        if handle_reconnect_message(data, robot_id):
+                        else:
+                            print("⚠️ Failed to store data but continuing...")
                             result["data"] = data
 
+                        done.set()
+                        return
+
                 check_count += 1
-                if check_count % 15 == 0:
-                    elapsed = int(time.time() - start_time)
-                    remaining = timeout - elapsed
-                    print(f"⏳ Monitoring... {elapsed//60}m elapsed, {remaining//60}m remaining")
-                time.sleep(2)
+                if check_count % 15 == 0: # if check_count is a multiple of 15
+                    elapsed = int(time.time() - start_time) # calculate elapsed time
+                    remaining = timeout - elapsed # calculate remaining time
+                    print(f"⏳ Waiting... {elapsed//60}m elapsed, {remaining//60}m remaining") # print elapsed and remaining time
+                time.sleep(2) # Check every 2 seconds
 
             except Exception as e:
                 print(f"\n⚠️ Error checking for MQTT message: {e}")
@@ -352,17 +283,14 @@ def wait_for_mqtt_message(driver, robot_id, timeout=18000):
     thread = Thread(target=watch_local_storage)
     thread.start()
 
-    # Don't timeout - keep monitoring indefinitely
-    try:
-        while result["continue_monitoring"]:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        print("\n🛑 Monitoring interrupted by user")
-        result["continue_monitoring"] = False
-        done.set()
-
+    done.wait(timeout)
     thread.join()
-    return result["data"]
+
+    if result["data"]:
+        return result["data"]
+
+    print(f"\n⏰ Timeout: No MQTT message received within {timeout//3600} hours")
+    return None
 
 def setup_webdriver():
     """Setup and return Chrome WebDriver for Raspberry Pi"""
@@ -468,12 +396,22 @@ def check_websocket_connection(driver):
 
 def main_robot_process():
     """Main robot process that handles login and MQTT monitoring"""
-    global connection_state
+    global system_state
     driver = None
     
     try:
-        # Load process state
-        connection_state = load_process_state()
+        # Load system state
+        system_state = load_system_state()
+        
+        # Check if we need to reconnect with existing credentials
+        if system_state.get("connected") and os.path.exists(ROBOT_CREDENTIALS_FILE):
+            print("🔄 Attempting to reconnect with existing credentials...")
+            if restart_robot_control():
+                print("✅ Successfully reconnected!")
+                return True
+            else:
+                print("❌ Failed to reconnect, starting fresh...")
+                stop_robot_control()
         
         # Load or get robot credentials
         config = load_robot_config()
@@ -520,19 +458,40 @@ def main_robot_process():
             print("❌ WebSocket connection failed after multiple attempts")
             return False
         
-        # Start continuous MQTT message monitoring
-        print("\n📡 Starting continuous MQTT message monitoring...")
-        print("🔄 Monitoring for CONNECT, DISCONNECT, and RECONNECT messages...")
-        print("Press Ctrl+C to exit...")
-        
+        # Wait for MQTT message
+        print("\n📡 Starting MQTT message monitoring...")
         mqtt_data = wait_for_mqtt_message(driver, robot_id)
         
         if mqtt_data:
-            print("\n🎉 MQTT monitoring session completed!")
-        else:
-            print("🛑 MQTT monitoring ended without receiving initial message")
+            print("\n🎉 MQTT Data Processing Complete!")
+            print("📊 Final data:")
+            print(json.dumps(mqtt_data, indent=2))
             
-        return True
+            # Extract credentials for robot control
+            if extract_mqtt_credentials(mqtt_data, robot_id):
+                print("🔑 MQTT credentials prepared for robot control")
+                
+                # Start robot control script
+                if start_robot_control():
+                    print("🤖 Robot control is now active!")
+                    
+                    # Close WebSocket connection since we no longer need it
+                    print("🔌 Closing WebSocket connection...")
+                    driver.quit()
+                    driver = None
+                    
+                    print("✅ System is now running in MQTT-only mode")
+                    print("📡 Robot will wait for disconnect/reconnect commands via MQTT")
+                    
+                    # Wait for system commands or manual interrupt
+                    return wait_for_system_commands()
+                else:
+                    print("⚠️ Failed to start robot control, but credentials are saved")
+            
+            return False
+        else:
+            print("⏰ No MQTT message received within timeout period")
+            return False
             
     except Exception as e:
         print(f"❌ Critical error in main process: {e}")
@@ -540,31 +499,50 @@ def main_robot_process():
         return False
         
     finally:
-        # Cleanup: stop all processes and close browser
-        print("\n🧹 Performing cleanup...")
-        stop_robot_processes()
-        
         if driver:
             print("🔒 Closing browser...")
             try:
                 driver.quit()
             except:
-                pass
+                pass  # Ignore errors when closing driver
 
-def signal_handler(sig, frame):
-    """Handle shutdown signals gracefully"""
-    print(f"\n🛑 Received signal {sig}, shutting down gracefully...")
-    stop_robot_processes()
-    sys.exit(0)
+def wait_for_system_commands():
+    """Wait for disconnect/reconnect commands or manual interrupt"""
+    global motor_process, system_state
+    
+    try:
+        print("\n🎯 Monitoring system state...")
+        print("💡 System will respond to MQTT disconnect/reconnect commands")
+        print("🛑 Press Ctrl+C to manually stop the system")
+        
+        while True:
+            # Check if motor process is still running
+            if motor_process and motor_process.poll() is not None:
+                print("⚠️ Motor process terminated unexpectedly")
+                break
+            
+            # Check for system state changes
+            current_state = load_system_state()
+            
+            if not current_state.get("connected", False):
+                print("📡 Disconnect command received via MQTT")
+                break
+            
+            time.sleep(5)  # Check every 5 seconds
+            
+    except KeyboardInterrupt:
+        print("\n🛑 Manual shutdown requested")
+        stop_robot_control()
+        return True
+    
+    except Exception as e:
+        print(f"❌ Error in system monitoring: {e}")
+        return False
+    
+    return True
 
 def main():
     """Main function with auto-restart capability"""
-    global connection_state
-    
-    # Setup signal handlers for graceful shutdown
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
-    
     max_retries = 3
     retry_count = 0
     
@@ -572,7 +550,10 @@ def main():
     print(f"📁 Config file: {CONFIG_FILE}")
     print(f"📁 Data files: {WEBSOCKET_DATA_FILE}, {MQTT_LOG_FILE}")
     print(f"📁 Robot credentials file: {ROBOT_CREDENTIALS_FILE}")
-    print(f"📁 Process state file: {PROCESS_STATE_FILE}")
+    print(f"📁 System state file: {SYSTEM_STATE_FILE}")
+    
+    # Cleanup any existing processes on startup
+    stop_robot_control()
     
     while retry_count < max_retries:
         try:
@@ -582,17 +563,19 @@ def main():
             
             if success:
                 print("✅ Process completed successfully!")
-                break
+                # After successful completion, wait for new connect message
+                print("🔄 Waiting for new connection...")
+                continue  # Loop back to wait for new connection
             else:
                 retry_count += 1
                 if retry_count < max_retries:
-                    wait_time = 10 * retry_count
+                    wait_time = 10 * retry_count  # Increasing wait time
                     print(f"⏳ Waiting {wait_time} seconds before retry...")
                     time.sleep(wait_time)
                 
         except KeyboardInterrupt:
             print("\n🛑 Process interrupted by user")
-            stop_robot_processes()
+            stop_robot_control()
             break
         except Exception as e:
             print(f"💥 Unexpected error: {e}")

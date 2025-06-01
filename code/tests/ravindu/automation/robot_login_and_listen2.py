@@ -17,6 +17,7 @@ CONFIG_FILE = "robot_config.json"
 WEBSOCKET_DATA_FILE = "websocket_data.json"
 MQTT_LOG_FILE = "mqtt_data_log.json"
 ROBOT_CREDENTIALS_FILE = "robot_mqtt_credentials.json"
+SERVER_CONFIG_FILE = "server_config.json"
 
 def load_robot_config():
     """Load robot credentials from config file"""
@@ -227,11 +228,36 @@ def setup_webdriver():
         print(f"❌ Failed to setup WebDriver: {e}")
         raise
 
+def load_server_config():
+    """Load server configuration from file"""
+    try:
+        if os.path.exists(SERVER_CONFIG_FILE):
+            with open(SERVER_CONFIG_FILE, "r") as file:
+                config = json.load(file)
+                server_ip = config.get("serverIp")
+                if server_ip:
+                    print(f"Loaded server IP: {server_ip}")
+                    return server_ip
+                else:
+                    print("Server IP not found in configuration file.")
+                    return None
+        else:
+            print("No server configuration file found.")
+            return None
+    except Exception as e:
+        print(f"Error loading server configuration: {e}")
+        return None
+
 def perform_login(driver, robot_id, password):
     """Perform robot login"""
     try:
+        server_ip = load_server_config()
+        if not server_ip:
+            print("❌ Server IP not configured. Exiting...")
+            return False
+
         print("🌐 Navigating to login page...")
-        driver.get("http://54.79.197.251:5001/robot-login") #################################### change maybe
+        driver.get(f"http://{server_ip}:5001/robot-login")
         time.sleep(3)
 
         print("🔍 Finding login elements...")

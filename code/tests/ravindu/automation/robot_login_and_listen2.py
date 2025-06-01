@@ -233,22 +233,6 @@ def get_data_locally():
         print(f"Error retrieving WebSocket data locally: {e}")
         return None
 
-def close_websocket_only(driver):
-    """Close only the WebSocket connection, keep browser open"""
-    try:
-        print("🔌 Closing WebSocket connection (keeping browser open)...")
-        driver.execute_script("""
-            if (window.webSocketManager && window.webSocketManager.ws) {
-                window.webSocketManager.ws.close();
-                console.log('WebSocket connection closed');
-            }
-        """)
-        print("✅ WebSocket connection closed successfully")
-        return True
-    except Exception as e:
-        print(f"❌ Error closing WebSocket connection: {e}")
-        return False
-
 def wait_for_mqtt_message(driver, robot_id, timeout=18000):
     """Event-driven wait for MQTT authentication message."""
     print(f"🔄 Waiting for MQTT message for robot {robot_id}...")
@@ -257,7 +241,7 @@ def wait_for_mqtt_message(driver, robot_id, timeout=18000):
     from threading import Event, Thread
     import time
 
-    result = {"data": None, "message_type": None}
+    result = {"data": None}
     done = Event()
 
     def watch_local_storage():
@@ -269,31 +253,18 @@ def wait_for_mqtt_message(driver, robot_id, timeout=18000):
                 if websocket_data:
                     data = json.loads(websocket_data)
 
-                    # Check for connect message
                     if data.get("type") == "connect" and data.get("user") and data["user"].get("token"):
-                        print(f"\n📨 Connect WebSocket data received: {data}")
+                        print(f"\n📨 WebSocket data received: {data}")
                         print("🎉 MQTT authentication message received!")
                         print(f"🔑 ID Token: {data['user']['token'][:20]}...")
                         print(f"⏱️ Timestamp: {data.get('timestamp')}")
                         
                         if store_data_locally(data):
                             result["data"] = data
-                            result["message_type"] = "connect"
                         else:
                             print("⚠️ Failed to store data but continuing...")
                             result["data"] = data
-                            result["message_type"] = "connect"
 
-                        done.set()
-                        return
-                    
-                    # Check for disconnect message
-                    elif data.get("type") == "disconnect":
-                        print(f"\n📨 Disconnect WebSocket data received: {data}")
-                        print("🔌 Disconnect message received!")
-                        
-                        result["data"] = data
-                        result["message_type"] = "disconnect"
                         done.set()
                         return
 
@@ -316,10 +287,10 @@ def wait_for_mqtt_message(driver, robot_id, timeout=18000):
     thread.join()
 
     if result["data"]:
-        return result["data"], result["message_type"]
+        return result["data"]
 
     print(f"\n⏰ Timeout: No MQTT message received within {timeout//3600} hours")
-    return None, None
+    return None
 
 def setup_webdriver():
     """Setup and return Chrome WebDriver for Raspberry Pi"""
@@ -487,63 +458,40 @@ def main_robot_process():
             print("❌ WebSocket connection failed after multiple attempts")
             return False
         
-        # Main message monitoring loop
-        while True:
-            # Wait for MQTT message
-            print("\n📡 Starting MQTT message monitoring...")
-            mqtt_data, message_type = wait_for_mqtt_message(driver, robot_id)
+        # Wait for MQTT message
+        print("\n📡 Starting MQTT message monitoring...")
+        mqtt_data = wait_for_mqtt_message(driver, robot_id)
+        
+        if mqtt_data:
+            print("\n🎉 MQTT Data Processing Complete!")
+            print("📊 Final data:")
+            print(json.dumps(mqtt_data, indent=2))
             
-            if mqtt_data and message_type:
-                print(f"\n🎉 MQTT Data Processing Complete! Message type: {message_type}")
-                print("📊 Final data:")
-                print(json.dumps(mqtt_data, indent=2))
+            # Extract credentials for robot control
+            if extract_mqtt_credentials(mqtt_data, robot_id):
+                print("🔑 MQTT credentials prepared for robot control")
                 
-                if message_type == "connect":
-                    # Extract credentials for robot control
-                    if extract_mqtt_credentials(mqtt_data, robot_id):
-                        print("🔑 MQTT credentials prepared for robot control")
-                        
-                        # Start robot control script
-                        if start_robot_control():
-                            print("🤖 Robot control is now active!")
-                            
-                            # Close ONLY WebSocket connection, keep browser open
-                            close_websocket_only(driver)
-                            
-                            print("✅ System is now running in MQTT-only mode (browser still open)")
-                            print("📡 Robot will wait for disconnect/reconnect commands via MQTT")
-                            
-                            # Continue monitoring for disconnect message
-                            continue
-                        else:
-                            print("⚠️ Failed to start robot control, but credentials are saved")
-                            continue
-                    else:
-                        print("❌ Failed to extract MQTT credentials")
-                        continue
-                
-                elif message_type == "disconnect":
-                    print("🔌 Processing disconnect message...")
+                # Start robot control script
+                if start_robot_control():
+                    print("🤖 Robot control is now active!")
                     
-                    # Stop robot control
-                    stop_robot_control()
+                    # Close WebSocket connection since we no longer need it
+                    print("🔌 Closing WebSocket connection...")
+                    driver.quit()
+                    driver = None
                     
-                    # Close browser completely
-                    print("🔒 Closing browser completely...")
-                    if driver:
-                        try:
-                            driver.quit()
-                            driver = None
-                        except:
-                            pass
+                    print("✅ System is now running in MQTT-only mode")
+                    print("📡 Robot will wait for disconnect/reconnect commands via MQTT")
                     
-                    print("🔄 Disconnect processed - will restart entire process")
-                    return "restart"  # Signal to restart the entire process
+                    # Wait for system commands or manual interrupt
+                    return wait_for_system_commands()
+                else:
+                    print("⚠️ Failed to start robot control, but credentials are saved")
             
-            else:
-                print("⏰ No MQTT message received within timeout period")
-                # Continue monitoring
-                continue
+            return False
+        else:
+            print("⏰ No MQTT message received within timeout period")
+            return False
             
     except Exception as e:
         print(f"❌ Critical error in main process: {e}")
@@ -611,13 +559,9 @@ def main():
         try:
             print(f"\n🔄 Attempt {retry_count + 1}/{max_retries}")
             
-            result = main_robot_process()
+            success = main_robot_process()
             
-            if result == "restart":
-                print("🔄 Restarting entire process due to disconnect message...")
-                retry_count = 0  # Reset retry count for restart
-                continue
-            elif result:
+            if success:
                 print("✅ Process completed successfully!")
                 # After successful completion, wait for new connect message
                 print("🔄 Waiting for new connection...")

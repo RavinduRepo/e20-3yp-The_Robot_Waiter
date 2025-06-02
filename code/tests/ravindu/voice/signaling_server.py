@@ -56,7 +56,7 @@ class SignalingServer:
                     logger.warning(f"Connection to {client_id} closed")
                     await self.unregister_client(client_id)
     
-    async def handle_client(self, websocket: websockets.WebSocketServerProtocol, path: str):
+    async def handle_client(self, websocket: websockets.WebSocketServerProtocol):
         """Handle WebSocket connection from client"""
         client_id = None
         try:

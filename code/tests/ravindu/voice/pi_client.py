@@ -9,6 +9,7 @@ import json
 import logging
 import signal
 import sys
+import os
 import numpy as np
 import pyaudio
 import websockets
@@ -18,6 +19,23 @@ from aiortc.mediastreams import MediaStreamError
 from threading import Thread
 import time
 from queue import Queue, Empty
+
+# Suppress ALSA warnings
+os.environ['ALSA_PCM_CARD'] = '2'  # Use USB device
+os.environ['ALSA_PCM_DEVICE'] = '0'
+
+# Redirect stderr to suppress ALSA warnings during PyAudio initialization
+class ALSASuppressor:
+    def __enter__(self):
+        import sys
+        self.original_stderr = sys.stderr
+        sys.stderr = open(os.devnull, 'w')
+        return self
+        
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        import sys
+        sys.stderr.close()
+        sys.stderr = self.original_stderr
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -36,10 +54,14 @@ class AudioInputTrack(MediaStreamTrack):
     def __init__(self, device_index=None):
         super().__init__()
         self.device_index = device_index
-        self.audio = pyaudio.PyAudio()
+        self.audio = None
         self.stream = None
         self.audio_queue = Queue(maxsize=50)
         self.running = False
+        
+        # Initialize PyAudio with suppressed ALSA warnings
+        with ALSASuppressor():
+            self.audio = pyaudio.PyAudio()
         
     async def recv(self):
         """Receive audio frame"""
@@ -59,13 +81,12 @@ class AudioInputTrack(MediaStreamTrack):
     
     def _create_audio_frame(self, data):
         """Create audio frame from raw data"""
-        # This is a simplified frame creation - in practice you'd want proper AudioFrame
-        # For this example, we'll return the raw data wrapped appropriately
         class SimpleAudioFrame:
             def __init__(self, data):
                 self.data = data
                 self.sample_rate = SAMPLE_RATE
                 self.channels = CHANNELS
+                self.format = FORMAT
         return SimpleAudioFrame(data)
     
     async def start_recording(self):
@@ -85,12 +106,14 @@ class AudioInputTrack(MediaStreamTrack):
             )
             self.stream.start_stream()
             self.running = True
-            logger.info("Started audio recording")
+            logger.info(f"Started audio recording on device {self.device_index}")
         except Exception as e:
             logger.error(f"Failed to start recording: {e}")
     
     def _audio_callback(self, in_data, frame_count, time_info, status):
         """Callback for audio input"""
+        if status:
+            logger.warning(f"Audio input status: {status}")
         try:
             self.audio_queue.put_nowait(in_data)
         except:
@@ -103,17 +126,22 @@ class AudioInputTrack(MediaStreamTrack):
         if self.stream:
             self.stream.stop_stream()
             self.stream.close()
-        self.audio.terminate()
+        if self.audio:
+            self.audio.terminate()
 
 class AudioPlayer:
     """Audio playback handler"""
     
     def __init__(self, device_index=None):
         self.device_index = device_index
-        self.audio = pyaudio.PyAudio()
+        self.audio = None
         self.stream = None
-        self.playback_queue = Queue()
+        self.playback_queue = Queue(maxsize=50)
         self.running = False
+        
+        # Initialize PyAudio with suppressed ALSA warnings
+        with ALSASuppressor():
+            self.audio = pyaudio.PyAudio()
         
     def start_playback(self):
         """Start audio playback"""
@@ -132,12 +160,14 @@ class AudioPlayer:
             )
             self.stream.start_stream()
             self.running = True
-            logger.info("Started audio playback")
+            logger.info(f"Started audio playback on device {self.device_index}")
         except Exception as e:
             logger.error(f"Failed to start playback: {e}")
     
     def _playback_callback(self, in_data, frame_count, time_info, status):
         """Callback for audio output"""
+        if status:
+            logger.warning(f"Audio output status: {status}")
         try:
             data = self.playback_queue.get_nowait()
             return (data, pyaudio.paContinue)
@@ -159,7 +189,8 @@ class AudioPlayer:
         if self.stream:
             self.stream.stop_stream()
             self.stream.close()
-        self.audio.terminate()
+        if self.audio:
+            self.audio.terminate()
 
 class RaspberryPiAudioClient:
     """Main WebRTC audio client for Raspberry Pi"""
@@ -176,7 +207,6 @@ class RaspberryPiAudioClient:
         # Audio components
         self.audio_input = None
         self.audio_player = None
-        self.usb_device_index = None
         
         # Setup WebRTC event handlers
         self.pc.on("track", self.on_track)
@@ -184,23 +214,46 @@ class RaspberryPiAudioClient:
         
     def find_usb_audio_device(self):
         """Find USB audio device index"""
-        audio = pyaudio.PyAudio()
+        with ALSASuppressor():
+            audio = pyaudio.PyAudio()
+        
         usb_input_index = None
         usb_output_index = None
         
-        logger.info("Available audio devices:")
-        for i in range(audio.get_device_count()):
-            info = audio.get_device_info_by_index(i)
-            logger.info(f"Device {i}: {info['name']} - Inputs: {info['maxInputChannels']}, Outputs: {info['maxOutputChannels']}")
-            
-            # Look for USB audio devices
-            if 'usb' in info['name'].lower() or 'headset' in info['name'].lower():
-                if info['maxInputChannels'] > 0:
-                    usb_input_index = i
-                if info['maxOutputChannels'] > 0:
-                    usb_output_index = i
+        logger.info("Scanning for USB audio devices...")
         
-        audio.terminate()
+        try:
+            for i in range(audio.get_device_count()):
+                try:
+                    info = audio.get_device_info_by_index(i)
+                    device_name = info['name'].lower()
+                    
+                    # Look for USB audio devices (more comprehensive search)
+                    if any(keyword in device_name for keyword in ['usb', 'headset', 'pnp', 'audio device']):
+                        logger.info(f"Found USB device {i}: {info['name']} - Inputs: {info['maxInputChannels']}, Outputs: {info['maxOutputChannels']}")
+                        
+                        if info['maxInputChannels'] > 0:
+                            usb_input_index = i
+                            logger.info(f"Using USB input device: {i}")
+                        if info['maxOutputChannels'] > 0:
+                            usb_output_index = i
+                            logger.info(f"Using USB output device: {i}")
+                except Exception as e:
+                    # Skip problematic devices
+                    continue
+        except Exception as e:
+            logger.error(f"Error scanning audio devices: {e}")
+        finally:
+            audio.terminate()
+        
+        if usb_input_index is None:
+            logger.warning("No USB input device found, trying default input")
+            usb_input_index = 2  # From your log, device 2 is the USB device
+        
+        if usb_output_index is None:
+            logger.warning("No USB output device found, trying default output")
+            usb_output_index = 2  # From your log, device 2 is the USB device
+        
         return usb_input_index, usb_output_index
     
     async def connect_to_signaling_server(self):
@@ -283,16 +336,20 @@ class RaspberryPiAudioClient:
     async def handle_ice_candidate(self, message):
         """Handle incoming ICE candidate"""
         if message.get('candidate'):
-            candidate = RTCIceCandidate(
-                component=message['component'],
-                foundation=message['foundation'],
-                ip=message['ip'],
-                port=message['port'],
-                priority=message['priority'],
-                protocol=message['protocol'],
-                type=message['type']
-            )
-            await self.pc.addIceCandidate(candidate)
+            try:
+                candidate = RTCIceCandidate(
+                    component=message['component'],
+                    foundation=message['foundation'],
+                    ip=message['ip'],
+                    port=message['port'],
+                    priority=message['priority'],
+                    protocol=message['protocol'],
+                    type=message['type']
+                )
+                await self.pc.addIceCandidate(candidate)
+                logger.debug("Added ICE candidate")
+            except Exception as e:
+                logger.error(f"Error adding ICE candidate: {e}")
     
     async def on_ice_candidate(self, candidate):
         """Handle outgoing ICE candidate"""
@@ -331,6 +388,7 @@ class RaspberryPiAudioClient:
                 break
             except Exception as e:
                 logger.error(f"Error processing audio: {e}")
+                await asyncio.sleep(0.1)  # Prevent tight loop on persistent errors
     
     async def create_offer(self):
         """Create and send WebRTC offer"""

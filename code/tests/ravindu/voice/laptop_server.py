@@ -1,299 +1,414 @@
 #!/usr/bin/env python3
 """
-Laptop WebRTC Audio Server
-Handles built-in microphone/speakers and WebRTC connection with signaling server
+Laptop WebRTC Audio Client
+Handles audio input/output via built-in microphone and speakers
 """
 
 import asyncio
 import json
-import websockets
-import pyaudio
-import threading
-import queue
-import numpy as np
-from aiortc import RTCPeerConnection, RTCSessionDescription, MediaStreamTrack
 import logging
+import signal
+import sys
+import numpy as np
+import pyaudio
+import websockets
+from aiortc import RTCPeerConnection, RTCSessionDescription, RTCIceCandidate
+from aiortc.contrib.media import MediaStreamTrack
+from aiortc.mediastreams import MediaStreamError
+from threading import Thread
+import time
+from queue import Queue, Empty
 
-# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class AudioTrack(MediaStreamTrack):
-    """Custom audio track for laptop microphone input"""
+# Audio configuration
+SAMPLE_RATE = 16000
+CHANNELS = 1
+CHUNK_SIZE = 1024
+FORMAT = pyaudio.paInt16
+
+class AudioInputTrack(MediaStreamTrack):
+    """Custom audio track for capturing microphone input"""
+    
     kind = "audio"
     
     def __init__(self, device_index=None):
         super().__init__()
         self.device_index = device_index
-        self.audio_queue = queue.Queue()
-        self.p = pyaudio.PyAudio()
+        self.audio = pyaudio.PyAudio()
         self.stream = None
+        self.audio_queue = Queue(maxsize=50)
         self.running = False
         
-        # Audio parameters
-        self.sample_rate = 48000
-        self.channels = 1
-        self.chunk_size = 1024
+    async def recv(self):
+        """Receive audio frame"""
+        if not self.running:
+            await self.start_recording()
         
-    def start_recording(self):
-        """Start recording from laptop microphone"""
+        # Get audio data from queue
         try:
-            self.stream = self.p.open(
-                format=pyaudio.paInt16,
-                channels=self.channels,
-                rate=self.sample_rate,
+            audio_data = self.audio_queue.get(timeout=0.1)
+            # Convert to required format for aiortc
+            frame = self._create_audio_frame(audio_data)
+            return frame
+        except Empty:
+            # Return silence if no audio available
+            silence = np.zeros(CHUNK_SIZE, dtype=np.int16)
+            return self._create_audio_frame(silence.tobytes())
+    
+    def _create_audio_frame(self, data):
+        """Create audio frame from raw data"""
+        # This is a simplified frame creation - in practice you'd want proper AudioFrame
+        # For this example, we'll return the raw data wrapped appropriately
+        class SimpleAudioFrame:
+            def __init__(self, data):
+                self.data = data
+                self.sample_rate = SAMPLE_RATE
+                self.channels = CHANNELS
+        return SimpleAudioFrame(data)
+    
+    async def start_recording(self):
+        """Start audio recording in separate thread"""
+        if self.running:
+            return
+            
+        try:
+            self.stream = self.audio.open(
+                format=FORMAT,
+                channels=CHANNELS,
+                rate=SAMPLE_RATE,
                 input=True,
                 input_device_index=self.device_index,
-                frames_per_buffer=self.chunk_size,
+                frames_per_buffer=CHUNK_SIZE,
                 stream_callback=self._audio_callback
             )
-            self.running = True
             self.stream.start_stream()
-            logger.info(f"Started recording from device index: {self.device_index}")
+            self.running = True
+            logger.info("Started audio recording")
         except Exception as e:
-            logger.error(f"Error starting recording: {e}")
+            logger.error(f"Failed to start recording: {e}")
     
     def _audio_callback(self, in_data, frame_count, time_info, status):
-        """PyAudio callback for capturing audio"""
-        if self.running:
-            self.audio_queue.put(in_data)
+        """Callback for audio input"""
+        try:
+            self.audio_queue.put_nowait(in_data)
+        except:
+            pass  # Queue full, drop frame
         return (None, pyaudio.paContinue)
     
-    async def recv(self):
-        """Receive audio frame for WebRTC"""
-        if not self.running:
-            self.start_recording()
-        
-        try:
-            # Get audio data from queue (non-blocking)
-            audio_data = self.audio_queue.get_nowait()
-            # Convert to numpy array and create frame
-            audio_array = np.frombuffer(audio_data, dtype=np.int16)
-            return audio_array
-        except queue.Empty:
-            # Return silence if no audio available
-            return np.zeros(self.chunk_size, dtype=np.int16)
-    
-    def stop(self):
-        """Stop recording"""
+    async def stop_recording(self):
+        """Stop audio recording"""
         self.running = False
         if self.stream:
             self.stream.stop_stream()
             self.stream.close()
-        self.p.terminate()
+        self.audio.terminate()
 
-class SignalingServer:
-    """WebSocket signaling server for WebRTC negotiation"""
-    def __init__(self, host="localhost", port=8765):
-        self.host = host
-        self.port = port
-        self.clients = set()
+class AudioPlayer:
+    """Audio playback handler"""
+    
+    def __init__(self, device_index=None):
+        self.device_index = device_index
+        self.audio = pyaudio.PyAudio()
+        self.stream = None
+        self.playback_queue = Queue()
+        self.running = False
         
-    async def register(self, websocket, path):
-        """Register new client"""
-        self.clients.add(websocket)
-        logger.info(f"Client connected: {websocket.remote_address}")
-        
+    def start_playback(self):
+        """Start audio playback"""
+        if self.running:
+            return
+            
         try:
-            await websocket.wait_closed()
-        finally:
-            self.clients.remove(websocket)
-            logger.info(f"Client disconnected: {websocket.remote_address}")
-    
-    async def broadcast(self, message, sender=None):
-        """Broadcast message to all clients except sender"""
-        if self.clients:
-            await asyncio.gather(
-                *[client.send(message) for client in self.clients if client != sender],
-                return_exceptions=True
+            self.stream = self.audio.open(
+                format=FORMAT,
+                channels=CHANNELS,
+                rate=SAMPLE_RATE,
+                output=True,
+                output_device_index=self.device_index,
+                frames_per_buffer=CHUNK_SIZE,
+                stream_callback=self._playback_callback
             )
+            self.stream.start_stream()
+            self.running = True
+            logger.info("Started audio playback")
+        except Exception as e:
+            logger.error(f"Failed to start playback: {e}")
     
-    async def start_server(self):
-        """Start the signaling server"""
-        logger.info(f"Starting signaling server on {self.host}:{self.port}")
-        return await websockets.serve(self.register, self.host, self.port)
+    def _playback_callback(self, in_data, frame_count, time_info, status):
+        """Callback for audio output"""
+        try:
+            data = self.playback_queue.get_nowait()
+            return (data, pyaudio.paContinue)
+        except Empty:
+            # Return silence if no audio available
+            silence = np.zeros(frame_count * CHANNELS, dtype=np.int16)
+            return (silence.tobytes(), pyaudio.paContinue)
+    
+    def play_audio(self, data):
+        """Add audio data to playback queue"""
+        try:
+            self.playback_queue.put_nowait(data)
+        except:
+            pass  # Queue full, drop frame
+    
+    def stop_playback(self):
+        """Stop audio playback"""
+        self.running = False
+        if self.stream:
+            self.stream.stop_stream()
+            self.stream.close()
+        self.audio.terminate()
 
-class WebRTCAudioServer:
-    def __init__(self):
-        self.pc = RTCPeerConnection()
-        self.audio_track = None
-        self.signaling_server = SignalingServer()
-        self.connected_clients = {}
+class LaptopAudioClient:
+    """Main WebRTC audio client for Laptop"""
+    
+    def __init__(self, signaling_server_url, room_id="audio_room"):
+        self.signaling_server_url = signaling_server_url
+        self.room_id = room_id
+        self.client_id = "laptop"
         
-        # Setup PyAudio for output
-        self.p_output = pyaudio.PyAudio()
-        self.output_stream = None
-        self.default_mic_index = None
-        self.default_speaker_index = None
+        # WebRTC components
+        self.pc = RTCPeerConnection()
+        self.websocket = None
+        
+        # Audio components
+        self.audio_input = None
+        self.audio_player = None
+        
+        # Setup WebRTC event handlers
+        self.pc.on("track", self.on_track)
+        self.pc.on("icecandidate", self.on_ice_candidate)
         
     def find_default_audio_devices(self):
         """Find default audio devices"""
-        p = pyaudio.PyAudio()
-        
-        print("Available audio devices:")
-        for i in range(p.get_device_count()):
-            info = p.get_device_info_by_index(i)
-            print(f"Device {i}: {info['name']} - Max inputs: {info['maxInputChannels']}, Max outputs: {info['maxOutputChannels']}")
+        audio = pyaudio.PyAudio()
+        default_input_index = None
+        default_output_index = None
         
         # Get default devices
         try:
-            default_input_info = p.get_default_input_device_info()
-            self.default_mic_index = default_input_info['index']
-            logger.info(f"Default microphone: {default_input_info['name']} (index: {self.default_mic_index})")
-        except:
+            default_input_info = audio.get_default_input_device_info()
+            default_input_index = default_input_info['index']
+            logger.info(f"Default input device: {default_input_info['name']}")
+        except OSError:
             logger.warning("No default input device found")
-            
+        
         try:
-            default_output_info = p.get_default_output_device_info()
-            self.default_speaker_index = default_output_info['index']
-            logger.info(f"Default speaker: {default_output_info['name']} (index: {self.default_speaker_index})")
-        except:
+            default_output_info = audio.get_default_output_device_info()
+            default_output_index = default_output_info['index']
+            logger.info(f"Default output device: {default_output_info['name']}")
+        except OSError:
             logger.warning("No default output device found")
         
-        p.terminate()
+        # List all available devices for reference
+        logger.info("Available audio devices:")
+        for i in range(audio.get_device_count()):
+            info = audio.get_device_info_by_index(i)
+            logger.info(f"Device {i}: {info['name']} - Inputs: {info['maxInputChannels']}, Outputs: {info['maxOutputChannels']}")
+        
+        audio.terminate()
+        return default_input_index, default_output_index
     
-    def setup_audio_output(self):
-        """Setup audio output stream for receiving audio"""
+    async def connect_to_signaling_server(self):
+        """Connect to the WebSocket signaling server"""
         try:
-            self.output_stream = self.p_output.open(
-                format=pyaudio.paInt16,
-                channels=1,
-                rate=48000,
-                output=True,
-                output_device_index=self.default_speaker_index,
-                frames_per_buffer=1024
-            )
-            logger.info("Audio output setup completed")
+            self.websocket = await websockets.connect(self.signaling_server_url)
+            logger.info(f"Connected to signaling server: {self.signaling_server_url}")
+            
+            # Register with server
+            await self.websocket.send(json.dumps({
+                'type': 'register',
+                'client_id': self.client_id
+            }))
+            
+            # Join room
+            await self.websocket.send(json.dumps({
+                'type': 'join_room',
+                'room_id': self.room_id
+            }))
+            
         except Exception as e:
-            logger.error(f"Error setting up audio output: {e}")
+            logger.error(f"Failed to connect to signaling server: {e}")
+            raise
     
-    async def handle_incoming_audio(self, track):
-        """Handle incoming audio from remote peer"""
-        self.setup_audio_output()
-        
+    async def handle_signaling_messages(self):
+        """Handle incoming signaling messages"""
         try:
-            async for frame in track:
-                if self.output_stream and not self.output_stream.is_stopped():
-                    # Convert frame to bytes and play
-                    audio_data = frame.to_ndarray().astype(np.int16).tobytes()
-                    self.output_stream.write(audio_data)
-        except Exception as e:
-            logger.error(f"Error handling incoming audio: {e}")
-    
-    async def handle_websocket_client(self, websocket, path):
-        """Handle WebSocket client connections"""
-        client_id = f"{websocket.remote_address[0]}:{websocket.remote_address[1]}"
-        self.connected_clients[client_id] = {
-            'websocket': websocket,
-            'pc': RTCPeerConnection()
-        }
-        
-        logger.info(f"Client connected: {client_id}")
-        
-        try:
-            async for message in websocket:
-                data = json.loads(message)
-                await self.handle_signaling_message(client_id, data)
+            async for raw_message in self.websocket:
+                message = json.loads(raw_message)
+                msg_type = message.get('type')
                 
+                if msg_type == 'offer':
+                    await self.handle_offer(message)
+                elif msg_type == 'answer':
+                    await self.handle_answer(message)
+                elif msg_type == 'ice_candidate':
+                    await self.handle_ice_candidate(message)
+                elif msg_type in ['registered', 'joined_room']:
+                    logger.info(f"Server response: {message}")
+                    
         except websockets.exceptions.ConnectionClosed:
-            logger.info(f"Client disconnected: {client_id}")
-        finally:
-            if client_id in self.connected_clients:
-                del self.connected_clients[client_id]
+            logger.info("Signaling connection closed")
+        except Exception as e:
+            logger.error(f"Error in signaling: {e}")
     
-    async def handle_signaling_message(self, client_id, data):
-        """Handle signaling messages from clients"""
-        client_info = self.connected_clients[client_id]
-        websocket = client_info['websocket']
-        pc = client_info['pc']
+    async def handle_offer(self, message):
+        """Handle incoming WebRTC offer"""
+        logger.info("Received offer")
         
-        if data["type"] == "offer":
-            # Handle offer from Raspberry Pi
-            offer_data = data["data"]
-            offer = RTCSessionDescription(
-                sdp=offer_data["sdp"],
-                type=offer_data["type"]
-            )
-            
-            # Set remote description
-            await pc.setRemoteDescription(offer)
-            
-            # Find and setup default audio devices
-            self.find_default_audio_devices()
-            
-            # Create audio track from laptop microphone
-            audio_track = AudioTrack(device_index=self.default_mic_index)
-            pc.addTrack(audio_track)
-            
-            # Handle incoming tracks
-            @pc.on("track")
-            def on_track(track):
-                logger.info(f"Received track from {client_id}: {track.kind}")
-                if track.kind == "audio":
-                    asyncio.create_task(self.handle_incoming_audio(track))
-            
-            # Create answer
-            answer = await pc.createAnswer()
-            await pc.setLocalDescription(answer)
-            
-            # Send answer back to client
-            answer_message = {
-                "type": "answer",
-                "data": {
-                    "type": answer.type,
-                    "sdp": answer.sdp
-                }
-            }
-            
-            await websocket.send(json.dumps(answer_message))
-            logger.info(f"Sent answer to {client_id}")
-    
-    async def start_server(self):
-        """Start the WebRTC server with signaling"""
-        logger.info("Starting Laptop WebRTC Audio Server...")
-        
-        # Start WebSocket signaling server
-        server = await websockets.serve(
-            self.handle_websocket_client,
-            "localhost",
-            8765
+        # Set remote description
+        offer = RTCSessionDescription(
+            sdp=message['sdp'],
+            type=message['sdp_type']
         )
+        await self.pc.setRemoteDescription(offer)
         
-        logger.info("WebSocket signaling server started on ws://localhost:8765")
-        logger.info("Waiting for Raspberry Pi to connect...")
+        # Add our audio track before creating answer
+        input_index, output_index = self.find_default_audio_devices()
         
-        # Keep server running
-        await server.wait_closed()
+        if input_index is not None:
+            self.audio_input = AudioInputTrack(device_index=input_index)
+            self.pc.addTrack(self.audio_input)
+            logger.info(f"Added audio input track (device {input_index})")
+        
+        if output_index is not None:
+            self.audio_player = AudioPlayer(device_index=output_index)
+            self.audio_player.start_playback()
+            logger.info(f"Started audio output (device {output_index})")
+        
+        # Create and send answer
+        answer = await self.pc.createAnswer()
+        await self.pc.setLocalDescription(answer)
+        
+        await self.websocket.send(json.dumps({
+            'type': 'answer',
+            'room_id': self.room_id,
+            'sdp': self.pc.localDescription.sdp,
+            'sdp_type': self.pc.localDescription.type
+        }))
+        
+        logger.info("Sent answer")
     
-    def cleanup(self):
+    async def handle_answer(self, message):
+        """Handle incoming WebRTC answer"""
+        logger.info("Received answer")
+        
+        answer = RTCSessionDescription(
+            sdp=message['sdp'],
+            type=message['sdp_type']
+        )
+        await self.pc.setRemoteDescription(answer)
+    
+    async def handle_ice_candidate(self, message):
+        """Handle incoming ICE candidate"""
+        if message.get('candidate'):
+            candidate = RTCIceCandidate(
+                component=message['component'],
+                foundation=message['foundation'],
+                ip=message['ip'],
+                port=message['port'],
+                priority=message['priority'],
+                protocol=message['protocol'],
+                type=message['type']
+            )
+            await self.pc.addIceCandidate(candidate)
+    
+    async def on_ice_candidate(self, candidate):
+        """Handle outgoing ICE candidate"""
+        if candidate:
+            await self.websocket.send(json.dumps({
+                'type': 'ice_candidate',
+                'room_id': self.room_id,
+                'candidate': candidate.candidate,
+                'component': candidate.component,
+                'foundation': candidate.foundation,
+                'ip': candidate.ip,
+                'port': candidate.port,
+                'priority': candidate.priority,
+                'protocol': candidate.protocol,
+                'type': candidate.type
+            }))
+    
+    def on_track(self, track):
+        """Handle incoming audio track"""
+        logger.info("Received remote audio track")
+        
+        if track.kind == "audio":
+            # Start processing incoming audio
+            asyncio.create_task(self.process_incoming_audio(track))
+    
+    async def process_incoming_audio(self, track):
+        """Process incoming audio frames"""
+        while True:
+            try:
+                frame = await track.recv()
+                # Play received audio
+                if self.audio_player and hasattr(frame, 'data'):
+                    self.audio_player.play_audio(frame.data)
+            except MediaStreamError:
+                logger.info("Audio track ended")
+                break
+            except Exception as e:
+                logger.error(f"Error processing audio: {e}")
+    
+    async def wait_for_offer(self):
+        """Wait for incoming offer (laptop acts as answerer)"""
+        logger.info("Waiting for offer from Raspberry Pi...")
+        # The laptop will wait for the Raspberry Pi to send an offer
+        # This is handled in handle_signaling_messages()
+    
+    async def run(self):
+        """Main run loop"""
+        try:
+            # Connect to signaling server
+            await self.connect_to_signaling_server()
+            
+            # Wait for offer and handle signaling messages
+            await self.handle_signaling_messages()
+            
+        except Exception as e:
+            logger.error(f"Error in run loop: {e}")
+        finally:
+            await self.cleanup()
+    
+    async def cleanup(self):
         """Cleanup resources"""
-        if self.output_stream:
-            self.output_stream.stop_stream()
-            self.output_stream.close()
-        if self.p_output:
-            self.p_output.terminate()
+        logger.info("Cleaning up...")
+        
+        if self.audio_input:
+            await self.audio_input.stop_recording()
+        
+        if self.audio_player:
+            self.audio_player.stop_playback()
+        
+        if self.pc:
+            await self.pc.close()
+        
+        if self.websocket:
+            await self.websocket.close()
 
 async def main():
-    server = WebRTCAudioServer()
+    # Configuration
+    signaling_server_url = "ws://192.168.8.199:8765"  # Replace with actual server IP
+    
+    client = LaptopAudioClient(signaling_server_url)
+    
+    # Handle Ctrl+C gracefully
+    def signal_handler(sig, frame):
+        logger.info("Received interrupt signal")
+        asyncio.create_task(client.cleanup())
+        sys.exit(0)
+    
+    signal.signal(signal.SIGINT, signal_handler)
     
     try:
-        await server.start_server()
+        await client.run()
     except KeyboardInterrupt:
-        logger.info("Shutting down...")
-    finally:
-        server.cleanup()
+        logger.info("Application stopped by user")
+    except Exception as e:
+        logger.error(f"Application error: {e}")
 
 if __name__ == "__main__":
-    # Install required packages:
-    # pip install aiortc pyaudio websockets numpy
-    
-    print("=== Laptop WebRTC Audio Server ===")
-    print("This server will:")
-    print("1. Use your laptop's built-in microphone and speakers")
-    print("2. Start a WebSocket signaling server on ws://localhost:8765")
-    print("3. Wait for the Raspberry Pi client to connect")
-    print("4. Establish WebRTC audio communication")
-    print("\nPress Ctrl+C to stop the server")
-    print("=" * 50)
-    
     asyncio.run(main())

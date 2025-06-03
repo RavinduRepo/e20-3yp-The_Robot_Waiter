@@ -1,39 +1,34 @@
-const express = require('express');
 const WebSocket = require('ws');
+const express = require('express');
 const app = express();
 const server = require('http').createServer(app);
 const wss = new WebSocket.Server({ server });
 
-let clientSocket = null;
 let piSocket = null;
+let clientSocket = null;
 
-wss.on('connection', socket => {
-  socket.on('message', msg => {
-    const message = JSON.parse(msg);
-    if (message.role === 'client') {
-      clientSocket = socket;
-    } else if (message.role === 'pi') {
-      piSocket = socket;
+wss.on('connection', (ws) => {
+  ws.on('message', (message) => {
+    const msg = JSON.parse(message);
+
+    if (msg.role === 'pi') {
+      piSocket = ws;
+    } else if (msg.role === 'client') {
+      clientSocket = ws;
     }
 
-    if (message.type === 'offer' && clientSocket) {
-      clientSocket.send(JSON.stringify({ type: 'offer', sdp: message.sdp }));
-    }
-
-    if (message.type === 'answer' && piSocket) {
-      piSocket.send(JSON.stringify({ type: 'answer', sdp: message.sdp }));
-    }
-
-    if (message.type === 'ice' && message.to === 'client' && clientSocket) {
-      clientSocket.send(JSON.stringify({ type: 'ice', candidate: message.candidate }));
-    }
-
-    if (message.type === 'ice' && message.to === 'pi' && piSocket) {
-      piSocket.send(JSON.stringify({ type: 'ice', candidate: message.candidate }));
+    if (msg.type === 'offer' && clientSocket) {
+      clientSocket.send(message);
+    } else if (msg.type === 'answer' && piSocket) {
+      piSocket.send(message);
+    } else if (msg.type === 'ice') {
+      (msg.to === 'pi' ? piSocket : clientSocket)?.send(message);
     }
   });
 });
 
 app.use(express.static('public'));
 
-server.listen(3000, () => console.log('Server running on http://localhost:3000'));
+server.listen(3000, () => {
+  console.log('Signaling server on http://localhost:3000');
+});

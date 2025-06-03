@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 import sys, asyncio, json, websockets, gi
+
+import gi
 gi.require_version('Gst', '1.0')
+from gi.repository import Gst
 gi.require_version('GstWebRTC', '1.0')
 from gi.repository import Gst, GstWebRTC, GObject, GLib
 

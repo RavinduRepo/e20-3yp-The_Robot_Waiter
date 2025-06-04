@@ -6,6 +6,7 @@ from flask import Flask, render_template_string, request, jsonify
 import wifi
 from pathlib import Path
 import time
+import sys
 
 # Constants
 WIFI_CONFIG_FILE = Path("wifi_config.json")
@@ -101,19 +102,29 @@ def connect_to_wifi(ssid, password):
         # Save credentials
         save_wifi_config(ssid, password)
         
-        # Create wpa_supplicant configuration
+        # Create wpa_supplicant configuration in a temporary file
         config_content = create_wpa_config(ssid, password)
-        with open('/etc/wpa_supplicant/wpa_supplicant.conf', 'w') as f:
+        temp_config = '/tmp/wpa_supplicant.conf.tmp'
+        
+        with open(temp_config, 'w') as f:
             f.write(config_content)
         
-        # Restart networking
-        print("Restarting wireless interface...")
-        subprocess.run(['sudo', 'ifconfig', 'wlan0', 'down'], check=True)
-        subprocess.run(['sudo', 'ifconfig', 'wlan0', 'up'], check=True)
+        # Copy the config file to correct location with sudo
+        subprocess.run(['sudo', 'cp', temp_config, '/etc/wpa_supplicant/wpa_supplicant.conf'], check=True)
+        subprocess.run(['sudo', 'chmod', '600', '/etc/wpa_supplicant/wpa_supplicant.conf'], check=True)
         
-        # Restart wpa_supplicant
-        print("Restarting wpa_supplicant...")
+        # Restart networking with sudo
+        print("Restarting wireless interface...")
+        subprocess.run(['sudo', 'ip', 'link', 'set', 'wlan0', 'down'], check=True)
+        subprocess.run(['sudo', 'ip', 'link', 'set', 'wlan0', 'up'], check=True)
+        
+        # Restart wpa_supplicant and dhclient with sudo
+        print("Restarting network services...")
         subprocess.run(['sudo', 'systemctl', 'restart', 'wpa_supplicant'], check=True)
+        subprocess.run(['sudo', 'dhclient', 'wlan0'], check=True)
+        
+        # Clean up temp file
+        os.remove(temp_config)
         
         # Wait for connection
         print("Waiting for connection...")
@@ -128,6 +139,10 @@ def connect_to_wifi(ssid, password):
         print("Failed to connect after maximum retries")
         return False
         
+    except subprocess.CalledProcessError as e:
+        print(f"Failed to execute command: {e}")
+        print("Error output:", e.stderr if hasattr(e, 'stderr') else 'No error output')
+        return False
     except Exception as e:
         print(f"Failed to connect to WiFi: {e}")
         return False
@@ -174,6 +189,12 @@ def start_web_server():
 
 def main():
     """Main function to handle WiFi management"""
+    # Check if running with sudo
+    if os.geteuid() != 0:
+        print("This script must be run with sudo privileges!")
+        print("Please run: sudo python3 wifi_manager.py")
+        sys.exit(1)
+        
     # Try to connect with saved credentials first
     config = load_wifi_config()
     if config:

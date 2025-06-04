@@ -4,6 +4,7 @@ import time
 import sys
 import traceback
 import os
+import threading
 from config_manager import (
     load_robot_config, get_user_credentials, load_system_state, save_robot_config,
     CONFIG_FILE, WEBSOCKET_DATA_FILE, MQTT_LOG_FILE, 
@@ -19,6 +20,7 @@ from webdriver_manager import (
     close_websocket_connection, collect_credentials_from_web
 )
 from mqtt_monitor import wait_for_mqtt_message
+from wifi_manager import main as wifi_setup
 
 def main_robot_process():
     """Main robot process that handles login and MQTT monitoring"""
@@ -137,6 +139,13 @@ def main_robot_process():
 def main():
     """Main function with indefinite retry capability"""
     print("🤖 Robot MQTT Monitor Starting...")
+    
+    # Initialize WiFi manager
+    print("📶 Starting WiFi setup...")
+    wifi_thread = threading.Thread(target=wifi_setup)
+    wifi_thread.daemon = True
+    wifi_thread.start()
+    
     print(f"📁 Config file: {CONFIG_FILE}")
     print(f"📁 Data files: {WEBSOCKET_DATA_FILE}, {MQTT_LOG_FILE}")
     print(f"📁 Robot credentials file: {ROBOT_CREDENTIALS_FILE}")

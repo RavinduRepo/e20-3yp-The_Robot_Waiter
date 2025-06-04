@@ -10,18 +10,19 @@ from pathlib import Path
 
 # Constants
 WIFI_CONFIG_FILE = Path("wifi_config.json")
+ROBOT_CONFIG_FILE = Path("robot_config.json")
 WPA_SUPPLICANT_CONF = "/etc/wpa_supplicant/wpa_supplicant.conf"
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Raspberry Pi WiFi Setup</title>
+    <title>Raspberry Pi WiFi & Robot Setup</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
         body { 
             font-family: Arial, sans-serif; 
-            max-width: 600px; 
+            max-width: 800px; 
             margin: 0 auto; 
             padding: 20px; 
             background-color: #f5f5f5;
@@ -31,6 +32,13 @@ HTML_TEMPLATE = """
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .section-title {
+            color: #333;
+            border-bottom: 2px solid #007acc;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
         }
         .network { 
             padding: 15px; 
@@ -72,10 +80,25 @@ HTML_TEMPLATE = """
             border-radius: 6px;
             margin-top: 20px;
         }
-        input[type="password"] {
+        .config-form {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 6px;
+            margin-top: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+        input[type="password"], input[type="text"] {
             width: 100%;
             padding: 10px;
-            margin: 10px 0;
+            margin: 5px 0;
             border: 1px solid #ddd;
             border-radius: 4px;
             box-sizing: border-box;
@@ -98,6 +121,12 @@ HTML_TEMPLATE = """
         .cancel-btn:hover {
             background: #444;
         }
+        .save-btn {
+            background: #28a745;
+        }
+        .save-btn:hover {
+            background: #218838;
+        }
         .status {
             margin-top: 15px;
             padding: 10px;
@@ -114,6 +143,11 @@ HTML_TEMPLATE = """
             color: #721c24;
             border: 1px solid #f5c6cb;
         }
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
         .loading {
             display: none;
             text-align: center;
@@ -126,27 +160,123 @@ HTML_TEMPLATE = """
         .refresh-btn:hover {
             background: #218838;
         }
+        .config-info {
+            background: #e9ecef;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-size: 12px;
+            color: #495057;
+        }
+        .tab-container {
+            margin-bottom: 20px;
+        }
+        .tab-buttons {
+            display: flex;
+            background: #e9ecef;
+            border-radius: 8px 8px 0 0;
+            overflow: hidden;
+        }
+        .tab-button {
+            flex: 1;
+            padding: 15px;
+            background: #e9ecef;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        .tab-button.active {
+            background: #007acc;
+            color: white;
+        }
+        .tab-button:hover:not(.active) {
+            background: #dee2e6;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Raspberry Pi WiFi Setup</h1>
-        <button class="refresh-btn" onclick="refreshNetworks()">🔄 Refresh Networks</button>
-        <div class="loading" id="loading">Scanning for networks...</div>
-        <div id="networks"></div>
-        <div id="passwordForm">
-            <h3>Connect to: <span id="selectedNetwork"></span></h3>
-            <input type="password" id="password" placeholder="Enter WiFi password">
-            <br>
-            <button onclick="connectWifi()">Connect</button>
-            <button class="cancel-btn" onclick="hidePasswordForm()">Cancel</button>
+    <div class="tab-container">
+        <div class="tab-buttons">
+            <button class="tab-button active" onclick="switchTab('wifi')">📶 WiFi Setup</button>
+            <button class="tab-button" onclick="switchTab('robot')">🤖 Robot Config</button>
         </div>
-        <div id="status" class="status"></div>
+    </div>
+
+    <!-- WiFi Tab -->
+    <div id="wifi-tab" class="tab-content active">
+        <div class="container">
+            <h1 class="section-title">WiFi Network Setup</h1>
+            <button class="refresh-btn" onclick="refreshNetworks()">🔄 Refresh Networks</button>
+            <div class="loading" id="loading">Scanning for networks...</div>
+            <div id="networks"></div>
+            <div id="passwordForm">
+                <h3>Connect to: <span id="selectedNetwork"></span></h3>
+                <input type="password" id="password" placeholder="Enter WiFi password">
+                <br>
+                <button onclick="connectWifi()">Connect</button>
+                <button class="cancel-btn" onclick="hidePasswordForm()">Cancel</button>
+            </div>
+            <div id="wifi-status" class="status"></div>
+        </div>
+    </div>
+
+    <!-- Robot Config Tab -->
+    <div id="robot-tab" class="tab-content">
+        <div class="container">
+            <h1 class="section-title">Robot Configuration</h1>
+            <div class="config-info">
+                Configure your robot's ID and password. These settings are saved to robot_config.json.
+            </div>
+            <div class="config-form">
+                <div class="form-group">
+                    <label for="robotId">Robot ID:</label>
+                    <input type="text" id="robotId" placeholder="Enter Robot ID (e.g., ROBOwfyN)">
+                </div>
+                <div class="form-group">
+                    <label for="robotPassword">Robot Password:</label>
+                    <input type="text" id="robotPassword" placeholder="Enter Robot Password">
+                </div>
+                <button class="save-btn" onclick="saveRobotConfig()">💾 Save Configuration</button>
+                <button onclick="loadRobotConfig()">🔄 Reload</button>
+            </div>
+            <div id="robot-status" class="status"></div>
+        </div>
     </div>
 
     <script>
         let selectedSSID = '';
         
+        // Tab switching
+        function switchTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(tabName + '-tab').classList.add('active');
+            document.querySelector(`[onclick="switchTab('${tabName}')"]`).classList.add('active');
+            
+            // Load data for the active tab
+            if (tabName === 'wifi') {
+                loadNetworks();
+            } else if (tabName === 'robot') {
+                loadRobotConfig();
+            }
+        }
+        
+        // WiFi Functions
         function loadNetworks() {
             document.getElementById('loading').style.display = 'block';
             document.getElementById('networks').innerHTML = '';
@@ -158,12 +288,12 @@ HTML_TEMPLATE = """
                     if (data.success) {
                         displayNetworks(data.networks);
                     } else {
-                        showStatus('Failed to scan networks: ' + data.message, 'error');
+                        showWifiStatus('Failed to scan networks: ' + data.message, 'error');
                     }
                 })
                 .catch(error => {
                     document.getElementById('loading').style.display = 'none';
-                    showStatus('Error scanning networks: ' + error.message, 'error');
+                    showWifiStatus('Error scanning networks: ' + error.message, 'error');
                 });
         }
 
@@ -196,9 +326,7 @@ HTML_TEMPLATE = """
             document.getElementById('passwordForm').style.display = 'block';
             document.getElementById('selectedNetwork').textContent = ssid;
             document.getElementById('password').focus();
-            
-            // Clear previous status
-            hideStatus();
+            hideWifiStatus();
         }
 
         function hidePasswordForm() {
@@ -211,11 +339,11 @@ HTML_TEMPLATE = """
             const password = document.getElementById('password').value;
             
             if (!selectedSSID) {
-                showStatus('No network selected', 'error');
+                showWifiStatus('No network selected', 'error');
                 return;
             }
             
-            showStatus('Connecting to ' + selectedSSID + '...', 'info');
+            showWifiStatus('Connecting to ' + selectedSSID + '...', 'info');
             
             fetch('/connect', {
                 method: 'POST',
@@ -225,14 +353,14 @@ HTML_TEMPLATE = """
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    showStatus(data.message, 'success');
+                    showWifiStatus(data.message, 'success');
                     hidePasswordForm();
                 } else {
-                    showStatus(data.message, 'error');
+                    showWifiStatus(data.message, 'error');
                 }
             })
             .catch(error => {
-                showStatus('Connection error: ' + error.message, 'error');
+                showWifiStatus('Connection error: ' + error.message, 'error');
             });
         }
 
@@ -240,29 +368,115 @@ HTML_TEMPLATE = """
             loadNetworks();
         }
 
-        function showStatus(message, type) {
-            const statusDiv = document.getElementById('status');
+        function showWifiStatus(message, type) {
+            const statusDiv = document.getElementById('wifi-status');
             statusDiv.textContent = message;
             statusDiv.className = 'status ' + type;
             statusDiv.style.display = 'block';
             
             if (type === 'success') {
-                setTimeout(hideStatus, 5000);
+                setTimeout(hideWifiStatus, 5000);
             }
         }
 
-        function hideStatus() {
-            document.getElementById('status').style.display = 'none';
+        function hideWifiStatus() {
+            document.getElementById('wifi-status').style.display = 'none';
         }
 
-        // Load networks on page load
-        loadNetworks();
-        
-        // Enter key support for password field
-        document.getElementById('password').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                connectWifi();
+        // Robot Config Functions
+        function loadRobotConfig() {
+            fetch('/robot-config')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('robotId').value = data.config.robotId || '';
+                        document.getElementById('robotPassword').value = data.config.password || '';
+                        showRobotStatus('Configuration loaded successfully', 'success');
+                    } else {
+                        showRobotStatus('Failed to load configuration: ' + data.message, 'error');
+                    }
+                })
+                .catch(error => {
+                    showRobotStatus('Error loading configuration: ' + error.message, 'error');
+                });
+        }
+
+        function saveRobotConfig() {
+            const robotId = document.getElementById('robotId').value.trim();
+            const robotPassword = document.getElementById('robotPassword').value.trim();
+            
+            if (!robotId) {
+                showRobotStatus('Robot ID is required', 'error');
+                return;
             }
+            
+            if (!robotPassword) {
+                showRobotStatus('Robot Password is required', 'error');
+                return;
+            }
+            
+            showRobotStatus('Saving configuration...', 'info');
+            
+            fetch('/robot-config', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    robotId: robotId,
+                    password: robotPassword
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showRobotStatus(data.message, 'success');
+                } else {
+                    showRobotStatus(data.message, 'error');
+                }
+            })
+            .catch(error => {
+                showRobotStatus('Save error: ' + error.message, 'error');
+            });
+        }
+
+        function showRobotStatus(message, type) {
+            const statusDiv = document.getElementById('robot-status');
+            statusDiv.textContent = message;
+            statusDiv.className = 'status ' + type;
+            statusDiv.style.display = 'block';
+            
+            if (type === 'success') {
+                setTimeout(hideRobotStatus, 3000);
+            }
+        }
+
+        function hideRobotStatus() {
+            document.getElementById('robot-status').style.display = 'none';
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load initial data
+            loadNetworks();
+            
+            // Enter key support for password field
+            document.getElementById('password').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    connectWifi();
+                }
+            });
+            
+            // Enter key support for robot config fields
+            document.getElementById('robotId').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    saveRobotConfig();
+                }
+            });
+            
+            document.getElementById('robotPassword').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    saveRobotConfig();
+                }
+            });
         });
     </script>
 </body>
@@ -487,6 +701,38 @@ def load_wifi_config():
         print(f"Failed to load config: {e}")
     return None
 
+def load_robot_config():
+    """Load robot configuration from JSON file"""
+    try:
+        if ROBOT_CONFIG_FILE.exists():
+            with open(ROBOT_CONFIG_FILE, 'r') as f:
+                return json.load(f)
+        else:
+            # Return default structure if file doesn't exist
+            return {
+                "robotId": "",
+                "password": "",
+                "lastUpdated": time.time()
+            }
+    except Exception as e:
+        print(f"Failed to load robot config: {e}")
+        return None
+
+def save_robot_config(robot_id, password):
+    """Save robot configuration to JSON file"""
+    config = {
+        "robotId": robot_id,
+        "password": password,
+        "lastUpdated": time.time()
+    }
+    try:
+        with open(ROBOT_CONFIG_FILE, 'w') as f:
+            json.dump(config, f, indent=2)
+        return True, "Robot configuration saved successfully"
+    except Exception as e:
+        print(f"Failed to save robot config: {e}")
+        return False, f"Failed to save configuration: {str(e)}"
+
 def check_internet_connectivity():
     """Check if we have internet connectivity"""
     success, _, _ = run_command("ping -c 1 -W 5 8.8.8.8")
@@ -553,6 +799,58 @@ def connect():
             'message': f'Connection error: {str(e)}'
         })
 
+@app.route('/robot-config', methods=['GET', 'POST'])
+def robot_config():
+    if request.method == 'GET':
+        try:
+            config = load_robot_config()
+            if config is not None:
+                return jsonify({
+                    'success': True,
+                    'config': config
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'message': 'Failed to load robot configuration'
+                })
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'message': str(e)
+            })
+    
+    elif request.method == 'POST':
+        try:
+            data = request.json
+            robot_id = data.get('robotId', '').strip()
+            password = data.get('password', '').strip()
+            
+            if not robot_id:
+                return jsonify({
+                    'success': False,
+                    'message': 'Robot ID is required'
+                })
+            
+            if not password:
+                return jsonify({
+                    'success': False,
+                    'message': 'Robot password is required'
+                })
+            
+            success, message = save_robot_config(robot_id, password)
+            
+            return jsonify({
+                'success': success,
+                'message': message
+            })
+            
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'message': f'Save error: {str(e)}'
+            })
+
 @app.route('/status')
 def status():
     """Get current WiFi status"""
@@ -581,7 +879,7 @@ def start_web_server():
 
 def main():
     """Main function"""
-    print("=== Raspberry Pi WiFi Setup Tool ===")
+    print("=== Raspberry Pi WiFi & Robot Setup Tool ===")
     
     # Check if running as root/sudo for system operations
     if os.geteuid() != 0:
@@ -598,6 +896,13 @@ def main():
         else:
             print(f"✗ Failed to connect to saved network: {message}")
     
+    # Check robot config
+    robot_config = load_robot_config()
+    if robot_config and robot_config.get('robotId'):
+        print(f"✓ Robot config loaded - ID: {robot_config['robotId']}")
+    else:
+        print("⚠ Robot configuration not found or incomplete")
+    
     # Start web server
     server_thread = threading.Thread(target=start_web_server)
     server_thread.daemon = True
@@ -612,14 +917,17 @@ def main():
         ip = output.strip().split()[0]
         print(f"   Network access: http://{ip}:8080")
     
-    print(f"\n📱 Open the web interface to configure WiFi")
+    print(f"\n📱 Features available:")
+    print(f"   • WiFi network scanning and connection")
+    print(f"   • Robot configuration management")
+    print(f"   • Configuration file editing via web interface")
     print(f"   Press Ctrl+C to stop the server")
     
     try:
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
-        print("\n\n🛑 Shutting down WiFi setup tool...")
+        print("\n\n🛑 Shutting down setup tool...")
 
 if __name__ == "__main__":
     main()

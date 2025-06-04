@@ -2,8 +2,8 @@
 
 echo "[Startup] Checking WiFi configuration..."
 
-# Run WiFi setup
-python3 /home/pi/Documents/e20-3yp-The_Robot_Waiter/code/utils/wifi_setup.py
+# Run WiFi portal (auto-opens local web portal in browser)
+python3 /home/pi/Documents/e20-3yp-The_Robot_Waiter/code/utils/wifi_portal.py &
 
 # Kill any existing Chrome/Chromium processes
 pkill -f chrome || true

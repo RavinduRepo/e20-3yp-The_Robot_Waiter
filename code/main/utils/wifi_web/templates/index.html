@@ -1,24 +1,26 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>WiFi Setup</title>
+    <meta charset="UTF-8">
+    <title>Robot WiFi Setup</title>
+    <style>
+        body { font-family: Arial; padding: 2rem; background: #f0f0f0; }
+        form { background: white; padding: 1rem; border-radius: 8px; max-width: 400px; margin: auto; }
+        label, select, input { display: block; margin: 1rem 0; width: 100%; }
+        button { padding: 0.5rem; }
+    </style>
 </head>
 <body>
-    <h2>Connect to WiFi</h2>
-    {% if message %}
-        <p><strong>{{ message }}</strong></p>
-    {% endif %}
+    <h2>Robot WiFi Configuration</h2>
     <form method="post">
-        <label for="ssid">Select Network:</label>
-        <select name="ssid" required>
-            {% for ssid in networks %}
-                <option value="{{ ssid }}">{{ ssid }}</option>
+        <label for="ssid">Select WiFi Network:</label>
+        <select name="ssid" id="ssid" required>
+            {% for net in networks %}
+            <option value="{{ net }}">{{ net }}</option>
             {% endfor %}
         </select>
-        <br><br>
         <label for="password">Password:</label>
-        <input type="password" name="password" required />
-        <br><br>
+        <input type="password" name="password" required>
         <button type="submit">Connect</button>
     </form>
 </body>

@@ -58,3 +58,15 @@ def open_browser():
         service = ChromeService("/usr/bin/chromedriver")
         driver = webdriver.Chrome(service=service, options=chrome_options)
         driver.set_page_load_timeout(30)
+        driver.fullscreen_window()
+        driver.get("http://localhost:8080/")
+
+    except Exception as e:
+        print(f"❌ Failed to open browser: {e}")
+
+if __name__ == '__main__':
+    # Launch browser in a thread
+    threading.Thread(target=open_browser, daemon=True).start()
+
+    # Start Flask server
+    app.run(host='0.0.0.0', port=8080)

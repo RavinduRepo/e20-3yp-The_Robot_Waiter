@@ -36,7 +36,7 @@ GPIO.setwarnings(False)
 motor_timer = None
 
 # Function to stop motors after timeout
-def stop_motor_after_timeout(timeout=0.5): 
+def stop_motor_after_timeout(timeout=0.4): 
     global motor_timer
     if motor_timer:
         motor_timer.cancel()  # Cancel previous timer if any
@@ -102,13 +102,21 @@ def on_message(client, userdata, msg):
     payload = msg.payload.decode()
     print(f"📩 Message received: {payload}")
 
-    # Check if distance is safe to move
-    if shared_distance.value < 30:
-        motor_stop()
-        print("🚫 Too close, stopping motors")
-        return
+    ## Check if distance is safe to move
+    #if shared_distance.value < 30:
+    #    motor_stop()
+    #    print("🚫 Too close, stopping motors")
+    #    return
+
+    #if payload == '{"key":"ArrowUp"}':
+    #    motor_forward()
 
     if payload == '{"key":"ArrowUp"}':
+        # Stop only forward motion if too close
+        if shared_distance.value < 30:
+            motor_stop()
+            print("🚫 Too close to move forward")
+            return
         motor_forward()
     elif payload == '{"key":"ArrowDown"}':
         motor_backward()

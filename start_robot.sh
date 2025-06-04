@@ -1,5 +1,10 @@
 #!/bin/bash
 
+echo "[Startup] Checking WiFi configuration..."
+
+# Run WiFi setup
+python3 /home/pi/Documents/e20-3yp-The_Robot_Waiter/code/utils/wifi_setup.py
+
 # Kill any existing Chrome/Chromium processes
 pkill -f chrome || true
 pkill -f chromium || true
@@ -7,7 +12,7 @@ pkill -f chromium || true
 # Wait a moment for processes to fully terminate
 sleep 2
 
-# Clean up any leftover Chrome temp directories
+# Clean up Chrome temp directories
 find /tmp -name "chrome_*" -type d -user pi -exec rm -rf {} + 2>/dev/null || true
 
 # Activate virtual environment
@@ -22,16 +27,13 @@ if ! xset q &>/dev/null; then
     echo "No X11 display available"
 fi
 
-# Optional: Set screen resolution (uncomment if needed)
-# xrandr --output HDMI-1 --mode 1920x1080 --rate 60
-
-# Change to the main directory where the script and config files are located
+# Change to the main directory
 cd /home/pi/Documents/e20-3yp-The_Robot_Waiter/code/main/
 
-# Debug: Show current directory and list files
+# Debug info
 echo "Current working directory: $(pwd)"
 echo "Files in current directory:"
 ls -la
 
-# Run the Python script
+# Run the main robot code
 python robot_main.py

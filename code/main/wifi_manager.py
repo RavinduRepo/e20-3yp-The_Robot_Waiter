@@ -5,6 +5,7 @@ import threading
 from flask import Flask, render_template_string, request, jsonify
 import wifi
 from pathlib import Path
+import time
 
 # Constants
 WIFI_CONFIG_FILE = Path("wifi_config.json")
@@ -73,20 +74,60 @@ def get_wifi_networks():
         # Fallback for testing or if wifi module fails
         return ["Network1", "Network2", "Network3"]
 
+def create_wpa_config(ssid, password):
+    """Create WPA supplicant config file content"""
+    return f"""country=US
+ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
+update_config=1
+
+network={{
+    ssid="{ssid}"
+    psk="{password}"
+    key_mgmt=WPA-PSK
+}}"""
+
+def check_wifi_connection(ssid):
+    """Check if connected to specified network"""
+    try:
+        # Get current WiFi info using iwconfig
+        result = subprocess.run(['iwgetid'], capture_output=True, text=True)
+        return ssid in result.stdout
+    except:
+        return False
+
 def connect_to_wifi(ssid, password):
     """Connect to a WiFi network"""
     try:
         # Save credentials
         save_wifi_config(ssid, password)
         
-        # Connect to WiFi using wpa_supplicant
-        subprocess.run(['wpa_cli', '-i', 'wlan0', 'add_network'], check=True)
-        subprocess.run(['wpa_cli', '-i', 'wlan0', f'set_network', '0', 'ssid', f'"{ssid}"'], check=True)
-        subprocess.run(['wpa_cli', '-i', 'wlan0', f'set_network', '0', 'psk', f'"{password}"'], check=True)
-        subprocess.run(['wpa_cli', '-i', 'wlan0', 'enable_network', '0'], check=True)
-        subprocess.run(['wpa_cli', '-i', 'wlan0', 'save_config'], check=True)
+        # Create wpa_supplicant configuration
+        config_content = create_wpa_config(ssid, password)
+        with open('/etc/wpa_supplicant/wpa_supplicant.conf', 'w') as f:
+            f.write(config_content)
         
-        return True
+        # Restart networking
+        print("Restarting wireless interface...")
+        subprocess.run(['sudo', 'ifconfig', 'wlan0', 'down'], check=True)
+        subprocess.run(['sudo', 'ifconfig', 'wlan0', 'up'], check=True)
+        
+        # Restart wpa_supplicant
+        print("Restarting wpa_supplicant...")
+        subprocess.run(['sudo', 'systemctl', 'restart', 'wpa_supplicant'], check=True)
+        
+        # Wait for connection
+        print("Waiting for connection...")
+        max_retries = 15
+        for i in range(max_retries):
+            if check_wifi_connection(ssid):
+                print(f"Successfully connected to {ssid}")
+                return True
+            time.sleep(1)
+            print(f"Attempting to connect... ({i+1}/{max_retries})")
+        
+        print("Failed to connect after maximum retries")
+        return False
+        
     except Exception as e:
         print(f"Failed to connect to WiFi: {e}")
         return False
@@ -116,7 +157,16 @@ def scan():
 def connect():
     data = request.json
     success = connect_to_wifi(data['ssid'], data['password'])
-    return jsonify({'message': 'Connected successfully' if success else 'Connection failed'})
+    if success:
+        return jsonify({
+            'message': f"Connected successfully to {data['ssid']}",
+            'status': 'success'
+        })
+    else:
+        return jsonify({
+            'message': 'Failed to connect to WiFi network',
+            'status': 'error'
+        })
 
 def start_web_server():
     """Start the Flask web server"""

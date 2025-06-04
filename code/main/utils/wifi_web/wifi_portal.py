@@ -1,36 +1,37 @@
-from flask import Flask, render_template, request, redirect
-import subprocess
+from flask import Flask, request, render_template
 import json
-from pathlib import Path
+import os
+import subprocess
+import threading
+import time
+import webbrowser
 
 app = Flask(__name__)
-CONFIG_PATH = Path("/home/pi/Documents/e20-3yp-The_Robot_Waiter/code/main/utils/wifi_config.json")
+CONFIG_PATH = "/home/pi/Documents/e20-3yp-The_Robot_Waiter/code/main/utils/wifi_config.json"
 
+# Scan for available WiFi networks using nmcli
 def scan_networks():
-    result = subprocess.run(["nmcli", "-t", "-f", "SSID", "dev", "wifi"],
-                            capture_output=True, text=True)
-    networks = list(filter(None, set(result.stdout.strip().split('\n'))))
-    return sorted(networks)
-
-def connect_wifi(ssid, password):
-    result = subprocess.run(["nmcli", "dev", "wifi", "connect", ssid, "password", password],
-                            capture_output=True, text=True)
-    return result.returncode == 0
+    result = subprocess.run(["nmcli", "-t", "-f", "SSID", "dev", "wifi"], capture_output=True, text=True)
+    ssids = [ssid for ssid in result.stdout.strip().split('\n') if ssid]
+    return sorted(list(set(ssids)))  # Remove duplicates
 
 @app.route("/", methods=["GET", "POST"])
 def index():
+    message = None
     if request.method == "POST":
         ssid = request.form.get("ssid")
         password = request.form.get("password")
-        if connect_wifi(ssid, password):
+        if ssid and password:
             with open(CONFIG_PATH, "w") as f:
                 json.dump({"ssid": ssid, "password": password}, f)
-            return "<h2>WiFi Connected Successfully. You can close this window.</h2>"
-        else:
-            return "<h2>Failed to connect. Please try again.</h2>"
-
+            message = f"WiFi credentials for {ssid} saved. Please reboot."
     networks = scan_networks()
-    return render_template("index.html", networks=networks)
+    return render_template("index.html", networks=networks, message=message)
+
+def open_browser():
+    time.sleep(2)  # Wait for server to start
+    webbrowser.open("http://localhost:8080")
 
 if __name__ == "__main__":
+    threading.Thread(target=open_browser).start()
     app.run(host="0.0.0.0", port=8080)

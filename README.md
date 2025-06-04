@@ -27,7 +27,6 @@ The Robot Waiter is a remotely controlled service robot designed to assist in th
 
 ![image](https://github.com/user-attachments/assets/3c92a44e-e214-4f95-afcb-72a33cf19e14)
 
-
 ---
 
 ## Solution Architecture
@@ -62,20 +61,22 @@ Comprehensive testing of both hardware and software components:
 
 ## Detailed Budget
 
-| **Category**         | **Item**                 | **Description**                          | **Quantity** | **Unit Cost (LKR)** | **Total Cost (LKR)** |
-|-----------------------|--------------------------|------------------------------------------|--------------|---------------------|-----------------------|
-| **User Interaction**  | Camera Module           | Raspberry Pi Camera Module 3 (120°)     | 1            | 1800                | 1800                  |
-|                       | Display                 | Touch Screen/Display                     | 1            | 3000                | 3000                  |
-|                       | Mic                     | Mini USB Microphone for PC               | 2            | 1000                | 2000                  |
-| **Power**             | Battery                 | 12V NiMH Battery Pack                    | 1            | 6000                | 6000                  |
-|                       | Charger                 | Tenergy TN267 NiMH Charger               | 1            | 2500                | 2500                  |
-| **Navigation**        | DC Motors               | N20 Gear Motor                           | 4            | 1200                | 4800                  |
-|                       | Ultrasonic Sensor       | HC-SR04                                  | 3            | 500                 | 1500                  |
-|                       | Gyroscope               | MPU-9250                                 | 1            | 1000                | 1000                  |
-|                       | Wheels                  | Rubber Wheels                            | 4            | 400                 | 1600                  |
-| **Processing Unit**   | Raspberry Pi 3 B+       | 1.4GHz 64-bit Quad-Core Processor        | 1            | 12000               | 12000                 |
-|                       | ESP32                   | Type C Version                           | 1            | 1000                | 1000                  |
-| **Total Cost**        |                          |                                           |              |                     | **36,200**            |
+| **Category**         | **Item**                 | **Description**                            | **Quantity** | **Unit Cost (LKR)** | **Total Cost (LKR)** |
+|---------------------|--------------------------|--------------------------------------------|--------------|---------------------|-----------------------|
+| **User Interaction**| Camera Module            | Raspberry Pi Camera Module 1               | 1            | 1800                | 1800                  |
+|                     | Display                  | HDMI Display                               | 1            | 6000                | 6000                  |
+| **Power System**    | Battery                  | 12V UPS Battery                            | 1            | 5000                | 5000                  |
+|                     | Charger                  | 12V Charger                                | 1            | 2500                | 2500                  |
+|                     | Buck Converter           | 12V to 5V Converter                        | 1            | 150                 | 150                   |
+| **Navigation**      | Motors                   | JGB 520 100 RPM Gear Motors                | 4            | 1390                | 5560                  |
+|                     | Wheels                   | Rubber Wheels                              | 4            | 190                 | 760                   |
+|                     | Ultrasonic Sensors       | HC-SR04                                    | 2            | 500                 | 1000                  |
+| **Structure**       | Tray Frame               | Aluminium Frame                            | 1            | 2000                | 2000                  |
+|                     | Chassis                  | Wooden Chassis + Assembly Cost             | 1            | 1000                | 1000                  |
+|                     | Lathe Works              | Axle Lathe Processing                      | 4            | 600                 | 2400                  |
+| **Processing Unit** | Raspberry Pi 3 B         | 1.4GHz 64-bit Quad-Core Processor          | 1            | 20000               | 20000                 |
+
+|                     |                          |                                            |              |                     | **Total: 49,970 LKR** |
 
 ---
 
@@ -84,8 +85,6 @@ Comprehensive testing of both hardware and software components:
 The Robot Waiter project aims to revolutionize the hospitality industry by providing a practical, remotely controlled robot capable of efficient service. Future developments could include integrating AI for automation, enhancing the robot's scalability, and exploring commercialization opportunities.
 
 ---
-
-## Links
 
 ## Links
 

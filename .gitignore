@@ -6,3 +6,4 @@ code/tests/ravindu/automation2/*.json
 code/tests/ravindu/autoBackup/*.json
 code/main/*.json
 code/tests/ravindu/video_webrtc_try/signaling-server/package-lock.json
+code/main/utils/*.json

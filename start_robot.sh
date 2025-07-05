@@ -34,4 +34,4 @@ echo "Files in current directory:"
 ls -la
 
 # Run the Python script
-sudo python robot_main.py
+python robot_main.py

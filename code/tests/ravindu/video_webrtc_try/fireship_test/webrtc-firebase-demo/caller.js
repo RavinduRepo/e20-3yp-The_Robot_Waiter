@@ -61,6 +61,8 @@ const resetCall = () => {
 };
 
 webcamButton.onclick = async () => {
+  // Prompt user to allow camera/microphone access
+  alert('This site needs access to your camera and microphone. Please click "Allow" in your browser prompt.');
   try {
     localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
     webcamVideo.srcObject = localStream;
@@ -80,7 +82,13 @@ webcamButton.onclick = async () => {
     callButton.disabled = false;
     webcamButton.disabled = true;
   } catch (error) {
-    alert('Failed to start webcam. Please ensure camera/microphone permissions are granted and devices are available.');
+    if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+      alert('Camera/microphone access was denied. Please allow access to use this feature.');
+    } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+      alert('No camera or microphone found. Please connect a camera/microphone and try again.');
+    } else {
+      alert('Failed to start webcam. Please ensure camera/microphone permissions are granted and devices are available.');
+    }
   }
 };
 

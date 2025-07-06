@@ -19,9 +19,17 @@ const firestore = firebase.firestore();
 
 const servers = {
   iceServers: [
-    { urls: 'stun:stun.l.google.com:19302' },
     {
-      urls: 'turn:your.server.ip:3478',
+      urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'],
+    },
+        // Free public TURN server (example)
+    {
+      urls: 'turn:relay.metered.ca:80',
+      username: 'openai',
+      credential: 'openai'
+    },
+    {
+      urls: 'turn:relay.metered.ca:443',
       username: 'openai',
       credential: 'openai'
     }

@@ -8,7 +8,7 @@ from firebase_admin import credentials, firestore
 
 # ---------- CONFIG ----------
 
-FIREBASE_CRED_PATH = "firebase-credentials.json"  # Download your service account JSON file
+FIREBASE_CRED_PATH = "serviceAccountKey.json"  # Download your service account JSON file
 CALL_ID = "YOUR_CALL_ID"  # Change this dynamically or via args
 ICE_SERVERS = [
     {"urls": "stun:stun.l.google.com:19302"},

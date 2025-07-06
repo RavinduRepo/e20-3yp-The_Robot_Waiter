@@ -258,3 +258,15 @@ Werkzeug==2.2.2
 wrapt==1.14.1
 wsproto==1.2.0
 zipp==1.0.0
+
+# WebRTC and media handling
+aiortc>=1.4.0
+opencv-python>=4.5.0
+pyaudio>=0.2.11
+
+# Firebase integration
+firebase-admin>=6.0.0
+google-cloud-firestore>=2.7.0
+
+# Additional utilities
+asyncio-mqtt>=0.11.0

@@ -49,7 +49,10 @@ class AudioReceiver(MediaStreamTrack):
         return frame
 
 async def run_receiver(call_id):
-    pc = RTCPeerConnection(configuration={"iceServers": ICE_SERVERS})
+    from aiortc import RTCConfiguration
+
+    pc = RTCPeerConnection(configuration=RTCConfiguration(iceServers=ICE_SERVERS))
+
 
     call_ref = db.collection("calls").document(call_id)
     answer_candidates = call_ref.collection("answerCandidates")

@@ -1,4 +1,3 @@
-import './style.css';
 import firebase from 'firebase/app';
 import 'firebase/firestore';
 
@@ -6,10 +5,9 @@ const firebaseConfig = {
   apiKey: "AIzaSyBubdSfljjucCKUUwEwh15EtZFLywbsGEQ",
   authDomain: "test-webrtc-f155e.firebaseapp.com",
   projectId: "test-webrtc-f155e",
-  storageBucket: "test-webrtc-f155e.firebasestorage.app",
+  storageBucket: "test-webrtc-f155e.appspot.com",
   messagingSenderId: "674163171327",
-  appId: "1:674163171327:web:c8f988f1605a01bd9291ca",
-  measurementId: "G-VV8L1PP7GZ"
+  appId: "1:674163171327:web:c8f988f1605a01bd9291ca"
 };
 
 if (!firebase.apps.length) {
@@ -19,28 +17,13 @@ const firestore = firebase.firestore();
 
 const servers = {
   iceServers: [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
-
-    // Free public TURN server (example)
-    {
-      urls: 'turn:relay.metered.ca:80',
-      username: 'openai',
-      credential: 'openai'
-    },
-    {
-      urls: 'turn:relay.metered.ca:443',
-      username: 'openai',
-      credential: 'openai'
-    }
+    { urls: 'stun:stun.l.google.com:19302' }
   ],
   iceCandidatePoolSize: 10,
 };
 
-
 let pc = null;
 let localStream = null;
-let remoteStream = null;
 
 const webcamButton = document.getElementById('webcamButton');
 const webcamVideo = document.getElementById('webcamVideo');
@@ -53,10 +36,6 @@ const resetCall = () => {
   if (localStream) {
     localStream.getTracks().forEach(track => track.stop());
     localStream = null;
-  }
-  if (remoteStream) {
-    remoteStream.getTracks().forEach(track => track.stop());
-    remoteStream = null;
   }
   if (pc) {
     pc.close();
@@ -71,45 +50,34 @@ const resetCall = () => {
 };
 
 webcamButton.onclick = async () => {
-  // Prompt user to allow camera/microphone access
-  alert('This site needs access to your camera and microphone. Please click "Allow" in your browser prompt.');
+  alert('Please allow camera and microphone access.');
   try {
-    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
     webcamVideo.srcObject = localStream;
+
     pc = new RTCPeerConnection(servers);
 
-    localStream.getTracks().forEach((track) => {
+    localStream.getTracks().forEach(track => {
       pc.addTrack(track, localStream);
     });
 
     pc.ontrack = (event) => {
-      if (remoteVideo.srcObject !== event.streams[0]) {
+      if (!remoteVideo.srcObject) {
         remoteVideo.srcObject = event.streams[0];
-        remoteStream = event.streams[0];
       }
     };
 
     answerButton.disabled = false;
     webcamButton.disabled = true;
-  } catch (error) {
-    if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
-      alert('Camera/microphone access was denied. Please allow access to use this feature.');
-    } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
-      alert('No camera or microphone found. Please connect a camera/microphone and try again.');
-    } else {
-      alert('Failed to start webcam. Please ensure camera/microphone permissions are granted and devices are available.');
-    }
+  } catch (err) {
+    alert('Failed to get camera/mic: ' + err.message);
   }
 };
 
 answerButton.onclick = async () => {
-  if (!pc) {
-    alert("Please start your webcam first!");
-    return;
-  }
   const callId = callInput.value;
   if (!callId) {
-    alert("Please enter a Call ID to answer.");
+    alert("Enter Call ID.");
     return;
   }
 
@@ -122,29 +90,21 @@ answerButton.onclick = async () => {
   };
 
   const callData = (await callDoc.get()).data();
-  if (!callData || !callData.offer) {
-    alert("No call found with that ID or offer not present.");
+  if (!callData?.offer) {
+    alert("No call or offer found.");
     return;
   }
 
-  const offerDescription = callData.offer;
-  await pc.setRemoteDescription(new RTCSessionDescription(offerDescription));
-
+  await pc.setRemoteDescription(new RTCSessionDescription(callData.offer));
   const answerDescription = await pc.createAnswer();
   await pc.setLocalDescription(answerDescription);
 
-  const answer = {
-    type: answerDescription.type,
-    sdp: answerDescription.sdp,
-  };
+  await callDoc.update({ answer: { type: answerDescription.type, sdp: answerDescription.sdp } });
 
-  await callDoc.update({ answer });
-
-  offerCandidates.onSnapshot((snapshot) => {
-    snapshot.docChanges().forEach((change) => {
+  offerCandidates.onSnapshot(snapshot => {
+    snapshot.docChanges().forEach(change => {
       if (change.type === 'added') {
-        let data = change.doc.data();
-        pc.addIceCandidate(new RTCIceCandidate(data));
+        pc.addIceCandidate(new RTCIceCandidate(change.doc.data()));
       }
     });
   });
@@ -153,6 +113,4 @@ answerButton.onclick = async () => {
   answerButton.disabled = true;
 };
 
-hangupButton.onclick = () => {
-  resetCall();
-};
+hangupButton.onclick = resetCall;

@@ -2,8 +2,6 @@ import './style.css';
 import firebase from 'firebase/app';
 import 'firebase/firestore';
 
-// ...firebaseConfig, initialization, and servers as in main.js...
-
 const firebaseConfig = {
   apiKey: "AIzaSyBubdSfljjucCKUUwEwh15EtZFLywbsGEQ",
   authDomain: "test-webrtc-f155e.firebaseapp.com",
@@ -39,7 +37,6 @@ const servers = {
   iceCandidatePoolSize: 10,
 };
 
-
 let pc = null;
 let localStream = null;
 let remoteStream = null;
@@ -73,13 +70,19 @@ const resetCall = () => {
 };
 
 webcamButton.onclick = async () => {
-  // Prompt user to allow camera/microphone access
-  alert('This site needs access to your camera and microphone. Please click "Allow" in your browser prompt.');
+  // Prompt user to allow microphone access (no camera needed for caller)
+  alert('This site needs access to your microphone. Please click "Allow" in your browser prompt.');
   try {
-    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    webcamVideo.srcObject = localStream;
+    // Caller only needs audio, no video
+    localStream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
+    
+    // Hide the local video element since caller doesn't send video
+    webcamVideo.style.display = 'none';
+    document.querySelector('span h3').textContent = 'Local Audio Only';
+    
     pc = new RTCPeerConnection(servers);
 
+    // Add only audio track to the peer connection
     localStream.getTracks().forEach((track) => {
       pc.addTrack(track, localStream);
     });
@@ -95,18 +98,18 @@ webcamButton.onclick = async () => {
     webcamButton.disabled = true;
   } catch (error) {
     if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
-      alert('Camera/microphone access was denied. Please allow access to use this feature.');
+      alert('Microphone access was denied. Please allow access to use this feature.');
     } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
-      alert('No camera or microphone found. Please connect a camera/microphone and try again.');
+      alert('No microphone found. Please connect a microphone and try again.');
     } else {
-      alert('Failed to start webcam. Please ensure camera/microphone permissions are granted and devices are available.');
+      alert('Failed to start microphone. Please ensure microphone permissions are granted and device is available.');
     }
   }
 };
 
 callButton.onclick = async () => {
   if (!pc) {
-    alert("Please start your webcam first!");
+    alert("Please start your microphone first!");
     return;
   }
   const callDoc = firestore.collection('calls').doc();

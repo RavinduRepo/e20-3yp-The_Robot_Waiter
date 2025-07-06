@@ -37,7 +37,6 @@ const servers = {
   iceCandidatePoolSize: 10,
 };
 
-
 let pc = null;
 let localStream = null;
 let remoteStream = null;
@@ -74,10 +73,12 @@ webcamButton.onclick = async () => {
   // Prompt user to allow camera/microphone access
   alert('This site needs access to your camera and microphone. Please click "Allow" in your browser prompt.');
   try {
+    // Receiver sends both video and audio
     localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
     webcamVideo.srcObject = localStream;
     pc = new RTCPeerConnection(servers);
 
+    // Add both video and audio tracks to the peer connection
     localStream.getTracks().forEach((track) => {
       pc.addTrack(track, localStream);
     });
@@ -86,6 +87,10 @@ webcamButton.onclick = async () => {
       if (remoteVideo.srcObject !== event.streams[0]) {
         remoteVideo.srcObject = event.streams[0];
         remoteStream = event.streams[0];
+        
+        // Hide remote video element since caller only sends audio
+        remoteVideo.style.display = 'none';
+        document.querySelectorAll('span h3')[1].textContent = 'Remote Audio Only';
       }
     };
 

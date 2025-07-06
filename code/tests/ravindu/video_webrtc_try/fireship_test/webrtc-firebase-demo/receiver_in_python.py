@@ -75,11 +75,30 @@ class AudioReceiver(MediaStreamTrack):
         frame = await self.track.recv()
         if self.stream:
             try:
-                # Convert audio frame to bytes and play
-                audio_data = frame.to_ndarray().tobytes()
-                self.stream.write(audio_data)
+                # Convert audio frame to the correct format
+                # WebRTC audio frames are typically in different formats
+                if hasattr(frame, 'to_ndarray'):
+                    # Convert to numpy array first
+                    audio_array = frame.to_ndarray()
+                    # Ensure it's in the right format (int16)
+                    if audio_array.dtype != 'int16':
+                        # Convert float to int16
+                        audio_array = (audio_array * 32767).astype('int16')
+                    audio_data = audio_array.tobytes()
+                elif hasattr(frame, 'planes') and frame.planes:
+                    # Alternative method for older versions
+                    audio_data = frame.planes[0].to_bytes()
+                else:
+                    logger.warning("Unknown audio frame format")
+                    return frame
+                
+                if len(audio_data) > 0:
+                    self.stream.write(audio_data)
+                    
             except Exception as e:
                 logger.error(f"Error playing audio: {e}")
+                # Try simpler approach - just log the frame info
+                logger.info(f"Audio frame received: {type(frame)}, format: {getattr(frame, 'format', 'unknown')}")
         return frame
 
     def __del__(self):
@@ -155,16 +174,50 @@ async def run_receiver(call_id):
             if change.type.name == 'ADDED':
                 candidate = change.document.to_dict()
                 try:
-                    # Fix: Use the correct RTCIceCandidate constructor
-                    ice_candidate = RTCIceCandidate(
-                        candidate['candidate'],
-                        candidate['sdpMid'],
-                        candidate['sdpMLineIndex']
-                    )
-                    asyncio.ensure_future(pc.addIceCandidate(ice_candidate))
-                    logger.info(f"Added remote ICE candidate: {candidate}")
+                    # Parse the candidate string to extract required fields
+                    candidate_str = candidate['candidate']
+                    parts = candidate_str.split()
+                    
+                    if len(parts) >= 8:
+                        # Extract required fields from candidate string
+                        # Format: "candidate:foundation component protocol priority ip port typ type"
+                        foundation = parts[0].split(':')[1]
+                        component = int(parts[1])
+                        protocol = parts[2]
+                        priority = int(parts[3])
+                        ip = parts[4]
+                        port = int(parts[5])
+                        typ = parts[6]  # should be "typ"
+                        type_val = parts[7]  # host, srflx, prflx, relay
+                        
+                        # Create RTCIceCandidate with all required parameters
+                        ice_candidate = RTCIceCandidate(
+                            ip=ip,
+                            port=port,
+                            protocol=protocol,
+                            priority=priority,
+                            foundation=foundation,
+                            component=component,
+                            type=type_val,
+                            sdpMid=candidate['sdpMid'],
+                            sdpMLineIndex=candidate['sdpMLineIndex']
+                        )
+                        asyncio.ensure_future(pc.addIceCandidate(ice_candidate))
+                        logger.info(f"Added remote ICE candidate: {type_val} {ip}:{port}")
+                    else:
+                        logger.warning(f"Invalid candidate format: {candidate_str}")
                 except Exception as e:
                     logger.error(f"Error adding remote ICE candidate: {e}")
+                    # Try alternative approach - create from SDP string
+                    try:
+                        from aiortc.rtcicecandidatetest import candidate_from_sdp
+                        ice_candidate = candidate_from_sdp(candidate['candidate'])
+                        ice_candidate.sdpMid = candidate['sdpMid']
+                        ice_candidate.sdpMLineIndex = candidate['sdpMLineIndex']
+                        asyncio.ensure_future(pc.addIceCandidate(ice_candidate))
+                        logger.info(f"Added remote ICE candidate (fallback method)")
+                    except Exception as e2:
+                        logger.error(f"Fallback method also failed: {e2}")
 
     offer_candidates.on_snapshot(on_offer_candidate)
 

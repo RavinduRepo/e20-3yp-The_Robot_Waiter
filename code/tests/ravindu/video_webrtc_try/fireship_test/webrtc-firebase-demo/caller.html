@@ -1,28 +1,30 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>WebRTC Caller</title>
-</head>
-<body>
-  <h2>Caller</h2>
-  <div>
-    <h3>Your Audio Stream (mic only)</h3>
-    <video id="webcamVideo" autoplay playsinline muted></video>
-  </div>
-  <div>
-    <h3>Receiver's Video + Audio</h3>
-    <video id="remoteVideo" autoplay playsinline></video>
-  </div>
-
-  <button id="webcamButton">Start mic</button>
-  <button id="callButton" disabled>Create Call (offer)</button>
-  <div>
-    <label>Call ID:</label>
-    <input id="callInput" readonly />
-  </div>
-  <button id="hangupButton" disabled>Hangup</button>
-
-  <script type="module" src="caller.js"></script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WebRTC Caller</title>
+  </head>
+  <body>
+    <h2>Caller</h2>
+    <div class="videos">
+      <span>
+        <h3>Local Stream</h3>
+        <video id="webcamVideo" autoplay playsinline></video>
+      </span>
+      <span>
+        <h3>Remote Stream</h3>
+        <video id="remoteVideo" autoplay playsinline></video>
+      </span>
+    </div>
+    <button id="webcamButton">Start webcam</button>
+    <button id="callButton" disabled>Create Call (offer)</button>
+    <div>
+      <label>Call ID:</label>
+      <input id="callInput" readonly />
+    </div>
+    <button id="hangupButton" disabled>Hangup</button>
+    <script type="module" src="/caller.js"></script>
+  </body>
 </html>

@@ -80,7 +80,7 @@ async def run_receiver(call_id):
     await pc.setLocalDescription(answer)
 
     # Send answer to Firestore
-    await call_ref.update({
+    call_ref.update({
         "answer": {
             "type": pc.localDescription.type,
             "sdp": pc.localDescription.sdp

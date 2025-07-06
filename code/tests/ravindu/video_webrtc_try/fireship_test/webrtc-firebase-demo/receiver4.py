@@ -13,7 +13,7 @@ import numpy as np
 import cv2
 import firebase_admin
 from firebase_admin import credentials, firestore
-from aiortc import RTCPeerConnection, RTCSessionDescription, RTCIceCandidate, VideoStreamTrack, AudioStreamTrack, VideoFrame, AudioFrame
+from aiortc import RTCPeerConnection, RTCSessionDescription, RTCIceCandidate, VideoStreamTrack, AudioStreamTrack
 
 # Optional audio import
 try:
@@ -37,6 +37,9 @@ class CameraVideoTrack(VideoStreamTrack):
         if ret and frame is not None:
             self.frame_count += 1
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            
+            # Import VideoFrame from av when needed
+            from av import VideoFrame
             av_frame = VideoFrame.from_ndarray(frame, format="rgb24")
             av_frame.pts = self.frame_count
             av_frame.time_base = 1/30
@@ -64,6 +67,9 @@ class MicrophoneAudioTrack(AudioStreamTrack):
             data = self.stream.read(1024, exception_on_overflow=False)
             self.frame_count += 1
             audio_array = np.frombuffer(data, dtype=np.int16)
+            
+            # Import AudioFrame from av when needed
+            from av import AudioFrame
             frame = AudioFrame(format="s16", layout="mono", samples=len(audio_array))
             frame.planes[0].update(audio_array.tobytes())
             frame.pts = self.frame_count

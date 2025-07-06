@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """
-WebRTC Receiver for Raspberry Pi
-Receives audio from caller and sends video/audio to caller
-No web interface required - runs as a standalone Python script
+WebRTC Receiver for Raspberry Pi - Simplified Version
+Handles audio issues and provides better error handling
 """
 
 import asyncio
@@ -10,6 +9,8 @@ import json
 import logging
 import signal
 import sys
+import time
+import threading
 from typing import Optional
 
 # Third-party imports
@@ -17,11 +18,9 @@ import cv2
 import firebase_admin
 from firebase_admin import credentials, firestore
 from aiortc import RTCPeerConnection, RTCSessionDescription, RTCIceCandidate
-from aiortc.contrib.media import MediaPlayer, MediaRecorder
-from aiortc.contrib.signaling import object_to_string, object_from_string
+from aiortc import VideoStreamTrack, AudioStreamTrack
+import numpy as np
 import pyaudio
-import threading
-import time
 
 # Configure logging
 logging.basicConfig(
@@ -30,24 +29,115 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+class CameraVideoStreamTrack(VideoStreamTrack):
+    """Custom video track for camera stream"""
+    
+    def __init__(self, camera_index=0):
+        super().__init__()
+        self.camera = cv2.VideoCapture(camera_index)
+        self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+        self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+        self.camera.set(cv2.CAP_PROP_FPS, 15)  # Lower FPS for Pi
+        
+    async def recv(self):
+        """Capture frame from camera"""
+        ret, frame = self.camera.read()
+        if ret:
+            # Convert BGR to RGB
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            # Create VideoFrame
+            from aiortc import VideoFrame
+            video_frame = VideoFrame.from_ndarray(frame, format="rgb24")
+            video_frame.pts = int(time.time() * 1000000)  # Timestamp in microseconds
+            video_frame.time_base = 1000000
+            return video_frame
+        else:
+            # Return empty frame if camera fails
+            empty_frame = np.zeros((480, 640, 3), dtype=np.uint8)
+            from aiortc import VideoFrame
+            video_frame = VideoFrame.from_ndarray(empty_frame, format="rgb24")
+            video_frame.pts = int(time.time() * 1000000)
+            video_frame.time_base = 1000000
+            return video_frame
+
+class MicrophoneAudioStreamTrack(AudioStreamTrack):
+    """Custom audio track for microphone stream"""
+    
+    def __init__(self):
+        super().__init__()
+        self.audio = None
+        self.stream = None
+        self.setup_audio()
+        
+    def setup_audio(self):
+        """Setup audio with fallback options"""
+        try:
+            self.audio = pyaudio.PyAudio()
+            
+            # Try to find a working input device
+            input_device_index = None
+            for i in range(self.audio.get_device_count()):
+                try:
+                    device_info = self.audio.get_device_info_by_index(i)
+                    if device_info.get('maxInputChannels', 0) > 0:
+                        input_device_index = i
+                        logger.info(f"Found input device: {device_info['name']}")
+                        break
+                except:
+                    continue
+            
+            if input_device_index is not None:
+                self.stream = self.audio.open(
+                    format=pyaudio.paInt16,
+                    channels=1,
+                    rate=16000,  # Lower sample rate for Pi
+                    input=True,
+                    input_device_index=input_device_index,
+                    frames_per_buffer=1024
+                )
+                logger.info("Microphone initialized successfully")
+            else:
+                logger.warning("No input device found - microphone disabled")
+                
+        except Exception as e:
+            logger.error(f"Failed to setup microphone: {e}")
+            self.audio = None
+            self.stream = None
+    
+    async def recv(self):
+        """Capture audio frame"""
+        if self.stream:
+            try:
+                data = self.stream.read(1024, exception_on_overflow=False)
+                # Convert to numpy array
+                audio_data = np.frombuffer(data, dtype=np.int16)
+                # Create AudioFrame
+                from aiortc import AudioFrame
+                audio_frame = AudioFrame.from_ndarray(
+                    audio_data.reshape(1, -1), format="s16", layout="mono"
+                )
+                audio_frame.sample_rate = 16000
+                audio_frame.pts = int(time.time() * 16000)
+                audio_frame.time_base = 16000
+                return audio_frame
+            except Exception as e:
+                logger.error(f"Error capturing audio: {e}")
+                
+        # Return silence if no audio available
+        silence = np.zeros((1, 1024), dtype=np.int16)
+        from aiortc import AudioFrame
+        audio_frame = AudioFrame.from_ndarray(silence, format="s16", layout="mono")
+        audio_frame.sample_rate = 16000
+        audio_frame.pts = int(time.time() * 16000)
+        audio_frame.time_base = 16000
+        return audio_frame
+
 class WebRTCReceiver:
     def __init__(self, call_id: str):
         self.call_id = call_id
         self.pc: Optional[RTCPeerConnection] = None
-        self.local_video = None
-        self.local_audio = None
         self.running = False
-        
-        # Firebase configuration
-        self.firebase_config = {
-            "apiKey": "AIzaSyBubdSfljjucCKUUwEwh15EtZFLywbsGEQ",
-            "authDomain": "test-webrtc-f155e.firebaseapp.com",
-            "projectId": "test-webrtc-f155e",
-            "storageBucket": "test-webrtc-f155e.firebasestorage.app",
-            "messagingSenderId": "674163171327",
-            "appId": "1:674163171327:web:c8f988f1605a01bd9291ca",
-            "measurementId": "G-VV8L1PP7GZ"
-        }
+        self.audio_player = None
         
         # WebRTC configuration
         self.rtc_configuration = {
@@ -58,11 +148,6 @@ class WebRTCReceiver:
                     "urls": "turn:relay.metered.ca:80",
                     "username": "openai",
                     "credential": "openai"
-                },
-                {
-                    "urls": "turn:relay.metered.ca:443",
-                    "username": "openai",
-                    "credential": "openai"
                 }
             ]
         }
@@ -70,101 +155,96 @@ class WebRTCReceiver:
         # Initialize Firebase
         self.init_firebase()
         
-        # Audio setup for playback
-        self.audio_format = pyaudio.paInt16
-        self.channels = 1
-        self.rate = 44100
-        self.chunk = 1024
-        self.audio = pyaudio.PyAudio()
-        self.audio_stream = None
+        # Setup audio player
+        self.setup_audio_player()
         
     def init_firebase(self):
         """Initialize Firebase connection"""
         try:
-            # Initialize Firebase Admin SDK
-            # Note: You'll need to download your service account key file
-            # and place it in the same directory as this script
-            cred = credentials.Certificate("serviceAccountKey.json")
-            firebase_admin.initialize_app(cred)
-            self.db = firestore.client()
-            logger.info("Firebase initialized successfully")
-        except Exception as e:
-            logger.error(f"Failed to initialize Firebase: {e}")
-            # For development, you can use the REST API instead
-            # This is a simplified approach - in production, use proper authentication
-            self.db = None
-            logger.warning("Using fallback Firebase connection")
-    
-    def setup_camera(self):
-        """Initialize camera for video capture"""
-        try:
-            # Try different camera indices (0, 1, 2) for Raspberry Pi
-            for camera_index in [0, 1, 2]:
-                cap = cv2.VideoCapture(camera_index)
-                if cap.isOpened():
-                    # Set camera properties for better performance
-                    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-                    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-                    cap.set(cv2.CAP_PROP_FPS, 30)
-                    self.camera = cap
-                    logger.info(f"Camera initialized on index {camera_index}")
-                    return True
-                cap.release()
+            # Try to initialize Firebase Admin SDK
+            # For demo purposes, we'll use a simple approach
+            # Replace with your actual service account key path
+            service_account_path = "service-account-key.json"
             
-            logger.error("No camera found")
-            return False
+            try:
+                cred = credentials.Certificate(service_account_path)
+                firebase_admin.initialize_app(cred)
+                self.db = firestore.client()
+                logger.info("Firebase initialized successfully")
+            except Exception as e:
+                logger.warning(f"Firebase Admin SDK failed: {e}")
+                # Fallback to manual Firebase REST API if needed
+                self.db = None
+                logger.info("Using fallback Firebase connection")
+                
         except Exception as e:
-            logger.error(f"Failed to setup camera: {e}")
-            return False
+            logger.error(f"Firebase initialization error: {e}")
+            self.db = None
     
-    def setup_audio(self):
-        """Initialize audio for recording and playback"""
+    def setup_audio_player(self):
+        """Setup audio player for incoming audio"""
         try:
-            # Setup audio stream for playback (hearing caller)
-            self.audio_stream = self.audio.open(
-                format=self.audio_format,
-                channels=self.channels,
-                rate=self.rate,
-                output=True,
-                frames_per_buffer=self.chunk
-            )
-            logger.info("Audio initialized successfully")
-            return True
+            self.audio_player = pyaudio.PyAudio()
+            
+            # Find output device
+            output_device_index = None
+            for i in range(self.audio_player.get_device_count()):
+                try:
+                    device_info = self.audio_player.get_device_info_by_index(i)
+                    if device_info.get('maxOutputChannels', 0) > 0:
+                        output_device_index = i
+                        logger.info(f"Found output device: {device_info['name']}")
+                        break
+                except:
+                    continue
+            
+            if output_device_index is not None:
+                self.output_stream = self.audio_player.open(
+                    format=pyaudio.paInt16,
+                    channels=1,
+                    rate=16000,
+                    output=True,
+                    output_device_index=output_device_index,
+                    frames_per_buffer=1024
+                )
+                logger.info("Audio player initialized successfully")
+            else:
+                logger.warning("No output device found - audio playback disabled")
+                self.output_stream = None
+                
         except Exception as e:
-            logger.error(f"Failed to setup audio: {e}")
-            return False
+            logger.error(f"Failed to setup audio player: {e}")
+            self.audio_player = None
+            self.output_stream = None
     
     async def create_peer_connection(self):
         """Create and configure RTCPeerConnection"""
         self.pc = RTCPeerConnection(self.rtc_configuration)
         
-        # Add local media tracks (camera + microphone)
-        if self.setup_camera():
-            # Create video track from camera
-            self.local_video = CameraVideoTrack(self.camera)
-            self.pc.addTrack(self.local_video)
-            
-        if self.setup_audio():
-            # Create audio track from microphone
-            self.local_audio = MicrophoneAudioTrack()
-            self.pc.addTrack(self.local_audio)
+        # Add local video track
+        video_track = CameraVideoStreamTrack()
+        self.pc.addTrack(video_track)
+        logger.info("Added video track")
+        
+        # Add local audio track
+        audio_track = MicrophoneAudioStreamTrack()
+        self.pc.addTrack(audio_track)
+        logger.info("Added audio track")
         
         # Handle incoming media
         @self.pc.on("track")
         def on_track(track):
-            logger.info(f"Received track: {track.kind}")
+            logger.info(f"Received {track.kind} track")
             if track.kind == "audio":
-                # Play received audio
-                asyncio.create_task(self.play_audio_track(track))
+                asyncio.create_task(self.handle_audio_track(track))
             elif track.kind == "video":
-                # We don't need to display video from caller
-                logger.info("Received video track (not displaying)")
+                logger.info("Received video track (ignoring as requested)")
         
         # Handle ICE candidates
         @self.pc.on("icecandidate")
-        def on_icecandidate(candidate):
-            if candidate:
-                asyncio.create_task(self.send_ice_candidate(candidate))
+        def on_icecandidate(event):
+            if event.candidate:
+                asyncio.create_task(self.send_ice_candidate(event.candidate))
         
         # Handle connection state changes
         @self.pc.on("connectionstatechange")
@@ -174,19 +254,17 @@ class WebRTCReceiver:
                 logger.error("Connection failed")
                 self.cleanup()
     
-    async def play_audio_track(self, track):
-        """Play received audio track"""
+    async def handle_audio_track(self, track):
+        """Handle incoming audio track"""
         try:
             while self.running:
                 frame = await track.recv()
-                # Convert frame to bytes and play
-                if self.audio_stream:
-                    # This is a simplified approach - you might need to convert
-                    # the audio frame format to match your audio stream
-                    audio_data = frame.to_ndarray().tobytes()
-                    self.audio_stream.write(audio_data)
+                if self.output_stream and frame:
+                    # Convert frame to bytes and play
+                    audio_data = frame.to_ndarray().astype(np.int16)
+                    self.output_stream.write(audio_data.tobytes())
         except Exception as e:
-            logger.error(f"Error playing audio: {e}")
+            logger.error(f"Error handling audio track: {e}")
     
     async def send_ice_candidate(self, candidate):
         """Send ICE candidate to Firebase"""
@@ -195,47 +273,55 @@ class WebRTCReceiver:
                 candidate_data = {
                     "candidate": candidate.candidate,
                     "sdpMLineIndex": candidate.sdpMLineIndex,
-                    "sdpMid": candidate.sdpMid
+                    "sdpMid": candidate.sdpMid,
+                    "timestamp": firestore.SERVER_TIMESTAMP
                 }
                 
                 self.db.collection('calls').document(self.call_id)\
                     .collection('answerCandidates').add(candidate_data)
                 
-                logger.info("ICE candidate sent")
+                logger.info("ICE candidate sent to Firebase")
         except Exception as e:
             logger.error(f"Failed to send ICE candidate: {e}")
     
-    async def listen_for_offer(self):
-        """Listen for incoming call offer"""
+    async def wait_for_offer(self):
+        """Wait for call offer from Firebase"""
         try:
             if not self.db:
-                logger.error("Firebase not initialized")
-                return False
-                
+                logger.error("Firebase not available")
+                return None
+            
             call_ref = self.db.collection('calls').document(self.call_id)
             
-            # Wait for offer
-            doc = call_ref.get()
-            if not doc.exists:
-                logger.info(f"Waiting for call {self.call_id}...")
-                # In a real implementation, you'd use Firebase listeners
-                # For now, we'll poll (not ideal but works for demo)
-                while self.running:
+            # Poll for offer (in production, use real-time listeners)
+            logger.info(f"Waiting for call offer with ID: {self.call_id}")
+            
+            for attempt in range(300):  # Wait up to 5 minutes
+                try:
                     doc = call_ref.get()
-                    if doc.exists and doc.to_dict().get('offer'):
-                        break
-                    await asyncio.sleep(1)
-            
-            if not self.running:
-                return False
+                    if doc.exists:
+                        call_data = doc.to_dict()
+                        if call_data and 'offer' in call_data:
+                            logger.info("Found call offer")
+                            return call_data['offer']
+                except Exception as e:
+                    logger.error(f"Error checking for offer: {e}")
                 
-            call_data = doc.to_dict()
-            offer = call_data.get('offer')
+                if not self.running:
+                    break
+                    
+                await asyncio.sleep(1)
             
-            if not offer:
-                logger.error("No offer found")
-                return False
-                
+            logger.error("Timeout waiting for offer")
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error waiting for offer: {e}")
+            return None
+    
+    async def answer_call(self, offer):
+        """Answer the call with the given offer"""
+        try:
             # Set remote description
             await self.pc.setRemoteDescription(
                 RTCSessionDescription(offer['sdp'], offer['type'])
@@ -246,23 +332,30 @@ class WebRTCReceiver:
             await self.pc.setLocalDescription(answer)
             
             # Send answer to Firebase
-            answer_data = {
-                "answer": {
-                    "sdp": answer.sdp,
-                    "type": answer.type
+            if self.db:
+                answer_data = {
+                    "answer": {
+                        "sdp": answer.sdp,
+                        "type": answer.type
+                    },
+                    "timestamp": firestore.SERVER_TIMESTAMP
                 }
-            }
-            call_ref.update(answer_data)
-            
-            logger.info("Call answered successfully")
-            
-            # Listen for ICE candidates from caller
-            await self.listen_for_ice_candidates()
-            
-            return True
-            
+                
+                call_ref = self.db.collection('calls').document(self.call_id)
+                call_ref.update(answer_data)
+                
+                logger.info("Answer sent to Firebase")
+                
+                # Start listening for ICE candidates
+                await self.listen_for_ice_candidates()
+                
+                return True
+            else:
+                logger.error("Cannot send answer - Firebase not available")
+                return False
+                
         except Exception as e:
-            logger.error(f"Failed to handle offer: {e}")
+            logger.error(f"Error answering call: {e}")
             return False
     
     async def listen_for_ice_candidates(self):
@@ -270,28 +363,33 @@ class WebRTCReceiver:
         try:
             if not self.db:
                 return
-                
-            # This is a simplified polling approach
-            # In production, use Firebase real-time listeners
+            
             offer_candidates_ref = self.db.collection('calls').document(self.call_id)\
                 .collection('offerCandidates')
             
             processed_candidates = set()
             
-            while self.running and self.pc.connectionState != "closed":
-                docs = offer_candidates_ref.get()
+            while self.running and self.pc.connectionState not in ["closed", "failed"]:
+                try:
+                    docs = offer_candidates_ref.get()
+                    
+                    for doc in docs:
+                        if doc.id not in processed_candidates:
+                            candidate_data = doc.to_dict()
+                            
+                            if 'candidate' in candidate_data:
+                                candidate = RTCIceCandidate(
+                                    candidate_data['candidate'],
+                                    candidate_data.get('sdpMLineIndex'),
+                                    candidate_data.get('sdpMid')
+                                )
+                                
+                                await self.pc.addIceCandidate(candidate)
+                                processed_candidates.add(doc.id)
+                                logger.info("Added ICE candidate from caller")
                 
-                for doc in docs:
-                    if doc.id not in processed_candidates:
-                        candidate_data = doc.to_dict()
-                        candidate = RTCIceCandidate(
-                            candidate_data['candidate'],
-                            candidate_data.get('sdpMLineIndex'),
-                            candidate_data.get('sdpMid')
-                        )
-                        await self.pc.addIceCandidate(candidate)
-                        processed_candidates.add(doc.id)
-                        logger.info("Added ICE candidate")
+                except Exception as e:
+                    logger.error(f"Error processing ICE candidates: {e}")
                 
                 await asyncio.sleep(1)
                 
@@ -307,16 +405,27 @@ class WebRTCReceiver:
             # Create peer connection
             await self.create_peer_connection()
             
-            # Listen for and handle the call
-            success = await self.listen_for_offer()
+            # Wait for offer
+            offer = await self.wait_for_offer()
             
-            if success:
-                logger.info("Call connected successfully")
-                # Keep the connection alive
-                while self.running and self.pc.connectionState not in ["closed", "failed"]:
-                    await asyncio.sleep(1)
+            if offer:
+                # Answer the call
+                success = await self.answer_call(offer)
+                
+                if success:
+                    logger.info("Call connected successfully!")
+                    
+                    # Keep connection alive
+                    while self.running and self.pc.connectionState not in ["closed", "failed"]:
+                        await asyncio.sleep(1)
+                        
+                        # Log connection state periodically
+                        if int(time.time()) % 30 == 0:
+                            logger.info(f"Connection state: {self.pc.connectionState}")
+                else:
+                    logger.error("Failed to answer call")
             else:
-                logger.error("Failed to connect call")
+                logger.error("No offer received")
                 
         except Exception as e:
             logger.error(f"Error in start: {e}")
@@ -329,77 +438,43 @@ class WebRTCReceiver:
         self.running = False
         
         if self.pc:
-            asyncio.create_task(self.pc.close())
-            
-        if hasattr(self, 'camera') and self.camera:
-            self.camera.release()
-            
-        if self.audio_stream:
-            self.audio_stream.stop_stream()
-            self.audio_stream.close()
-            
-        if self.audio:
-            self.audio.terminate()
+            try:
+                asyncio.create_task(self.pc.close())
+            except:
+                pass
+        
+        # Clean up audio
+        if hasattr(self, 'output_stream') and self.output_stream:
+            try:
+                self.output_stream.stop_stream()
+                self.output_stream.close()
+            except:
+                pass
+        
+        if self.audio_player:
+            try:
+                self.audio_player.terminate()
+            except:
+                pass
     
     def signal_handler(self, signum, frame):
         """Handle shutdown signals"""
-        logger.info("Received shutdown signal")
+        logger.info(f"Received signal {signum}")
         self.cleanup()
         sys.exit(0)
-
-
-# Custom video track for camera
-class CameraVideoTrack:
-    def __init__(self, camera):
-        self.camera = camera
-        self.kind = "video"
-    
-    async def recv(self):
-        """Capture and return video frame"""
-        ret, frame = self.camera.read()
-        if ret:
-            # Convert OpenCV frame to aiortc VideoFrame
-            # This is a simplified conversion - you might need to adjust
-            return frame
-        return None
-
-
-# Custom audio track for microphone
-class MicrophoneAudioTrack:
-    def __init__(self):
-        self.kind = "audio"
-        # Initialize microphone recording
-        self.audio = pyaudio.PyAudio()
-        self.stream = self.audio.open(
-            format=pyaudio.paInt16,
-            channels=1,
-            rate=44100,
-            input=True,
-            frames_per_buffer=1024
-        )
-    
-    async def recv(self):
-        """Capture and return audio frame"""
-        try:
-            data = self.stream.read(1024)
-            # Convert to aiortc AudioFrame
-            # This is a simplified conversion
-            return data
-        except Exception as e:
-            logger.error(f"Error capturing audio: {e}")
-            return None
 
 
 async def main():
     """Main function"""
     if len(sys.argv) != 2:
         print("Usage: python3 webrtc_receiver.py <call_id>")
+        print("Example: python3 webrtc_receiver.py test-call-123")
         sys.exit(1)
     
     call_id = sys.argv[1]
     receiver = WebRTCReceiver(call_id)
     
-    # Set up signal handlers for graceful shutdown
+    # Set up signal handlers
     signal.signal(signal.SIGINT, receiver.signal_handler)
     signal.signal(signal.SIGTERM, receiver.signal_handler)
     
@@ -407,6 +482,7 @@ async def main():
         await receiver.start()
     except KeyboardInterrupt:
         logger.info("Interrupted by user")
+    finally:
         receiver.cleanup()
 
 

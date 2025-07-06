@@ -1,4 +1,3 @@
-import './style.css';
 import firebase from 'firebase/app';
 import 'firebase/firestore';
 
@@ -6,10 +5,9 @@ const firebaseConfig = {
   apiKey: "AIzaSyBubdSfljjucCKUUwEwh15EtZFLywbsGEQ",
   authDomain: "test-webrtc-f155e.firebaseapp.com",
   projectId: "test-webrtc-f155e",
-  storageBucket: "test-webrtc-f155e.firebasestorage.app",
+  storageBucket: "test-webrtc-f155e.appspot.com",
   messagingSenderId: "674163171327",
-  appId: "1:674163171327:web:c8f988f1605a01bd9291ca",
-  measurementId: "G-VV8L1PP7GZ"
+  appId: "1:674163171327:web:c8f988f1605a01bd9291ca"
 };
 
 if (!firebase.apps.length) {
@@ -19,27 +17,13 @@ const firestore = firebase.firestore();
 
 const servers = {
   iceServers: [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
-
-    // Free public TURN server (example)
-    {
-      urls: 'turn:relay.metered.ca:80',
-      username: 'openai',
-      credential: 'openai'
-    },
-    {
-      urls: 'turn:relay.metered.ca:443',
-      username: 'openai',
-      credential: 'openai'
-    }
+    { urls: 'stun:stun.l.google.com:19302' }
   ],
   iceCandidatePoolSize: 10,
 };
 
 let pc = null;
 let localStream = null;
-let remoteStream = null;
 
 const webcamButton = document.getElementById('webcamButton');
 const webcamVideo = document.getElementById('webcamVideo');
@@ -52,10 +36,6 @@ const resetCall = () => {
   if (localStream) {
     localStream.getTracks().forEach(track => track.stop());
     localStream = null;
-  }
-  if (remoteStream) {
-    remoteStream.getTracks().forEach(track => track.stop());
-    remoteStream = null;
   }
   if (pc) {
     pc.close();
@@ -70,48 +50,30 @@ const resetCall = () => {
 };
 
 webcamButton.onclick = async () => {
-  // Prompt user to allow microphone access (no camera needed for caller)
-  alert('This site needs access to your microphone. Please click "Allow" in your browser prompt.');
+  alert('Please allow microphone access.');
   try {
-    // Caller only needs audio, no video
-    localStream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
-    
-    // Hide the local video element since caller doesn't send video
-    webcamVideo.style.display = 'none';
-    document.querySelector('span h3').textContent = 'Local Audio Only';
-    
+    localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    webcamVideo.srcObject = localStream;  // Shows mic activity if any
     pc = new RTCPeerConnection(servers);
 
-    // Add only audio track to the peer connection
-    localStream.getTracks().forEach((track) => {
+    localStream.getTracks().forEach(track => {
       pc.addTrack(track, localStream);
     });
 
     pc.ontrack = (event) => {
-      if (remoteVideo.srcObject !== event.streams[0]) {
+      if (!remoteVideo.srcObject) {
         remoteVideo.srcObject = event.streams[0];
-        remoteStream = event.streams[0];
       }
     };
 
     callButton.disabled = false;
     webcamButton.disabled = true;
-  } catch (error) {
-    if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
-      alert('Microphone access was denied. Please allow access to use this feature.');
-    } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
-      alert('No microphone found. Please connect a microphone and try again.');
-    } else {
-      alert('Failed to start microphone. Please ensure microphone permissions are granted and device is available.');
-    }
+  } catch (err) {
+    alert('Failed to get microphone: ' + err.message);
   }
 };
 
 callButton.onclick = async () => {
-  if (!pc) {
-    alert("Please start your microphone first!");
-    return;
-  }
   const callDoc = firestore.collection('calls').doc();
   const offerCandidates = callDoc.collection('offerCandidates');
   const answerCandidates = callDoc.collection('answerCandidates');
@@ -125,23 +87,17 @@ callButton.onclick = async () => {
   const offerDescription = await pc.createOffer();
   await pc.setLocalDescription(offerDescription);
 
-  const offer = {
-    sdp: offerDescription.sdp,
-    type: offerDescription.type,
-  };
-
-  await callDoc.set({ offer });
+  await callDoc.set({ offer: { type: offerDescription.type, sdp: offerDescription.sdp } });
 
   callDoc.onSnapshot((snapshot) => {
     const data = snapshot.data();
     if (data?.answer && !pc.currentRemoteDescription) {
-      const answerDescription = new RTCSessionDescription(data.answer);
-      pc.setRemoteDescription(answerDescription);
+      pc.setRemoteDescription(new RTCSessionDescription(data.answer));
     }
   });
 
-  answerCandidates.onSnapshot((snapshot) => {
-    snapshot.docChanges().forEach((change) => {
+  answerCandidates.onSnapshot(snapshot => {
+    snapshot.docChanges().forEach(change => {
       if (change.type === 'added') {
         const candidate = new RTCIceCandidate(change.doc.data());
         pc.addIceCandidate(candidate);
@@ -153,6 +109,4 @@ callButton.onclick = async () => {
   callButton.disabled = true;
 };
 
-hangupButton.onclick = () => {
-  resetCall();
-};
+hangupButton.onclick = resetCall;

@@ -2,6 +2,8 @@ import './style.css';
 import firebase from 'firebase/app';
 import 'firebase/firestore';
 
+// ...firebaseConfig, initialization, and servers as in main.js...
+
 const firebaseConfig = {
   apiKey: "AIzaSyBubdSfljjucCKUUwEwh15EtZFLywbsGEQ",
   authDomain: "test-webrtc-f155e.firebaseapp.com",
@@ -44,8 +46,8 @@ let remoteStream = null;
 
 const webcamButton = document.getElementById('webcamButton');
 const webcamVideo = document.getElementById('webcamVideo');
+const callButton = document.getElementById('callButton');
 const callInput = document.getElementById('callInput');
-const answerButton = document.getElementById('answerButton');
 const remoteVideo = document.getElementById('remoteVideo');
 const hangupButton = document.getElementById('hangupButton');
 
@@ -66,7 +68,7 @@ const resetCall = () => {
   remoteVideo.srcObject = null;
   callInput.value = '';
   webcamButton.disabled = false;
-  answerButton.disabled = true;
+  callButton.disabled = true;
   hangupButton.disabled = true;
 };
 
@@ -89,7 +91,7 @@ webcamButton.onclick = async () => {
       }
     };
 
-    answerButton.disabled = false;
+    callButton.disabled = false;
     webcamButton.disabled = true;
   } catch (error) {
     if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
@@ -102,55 +104,50 @@ webcamButton.onclick = async () => {
   }
 };
 
-answerButton.onclick = async () => {
+callButton.onclick = async () => {
   if (!pc) {
     alert("Please start your webcam first!");
     return;
   }
-  const callId = callInput.value;
-  if (!callId) {
-    alert("Please enter a Call ID to answer.");
-    return;
-  }
-
-  const callDoc = firestore.collection('calls').doc(callId);
-  const answerCandidates = callDoc.collection('answerCandidates');
+  const callDoc = firestore.collection('calls').doc();
   const offerCandidates = callDoc.collection('offerCandidates');
+  const answerCandidates = callDoc.collection('answerCandidates');
+
+  callInput.value = callDoc.id;
 
   pc.onicecandidate = (event) => {
-    event.candidate && answerCandidates.add(event.candidate.toJSON());
+    event.candidate && offerCandidates.add(event.candidate.toJSON());
   };
 
-  const callData = (await callDoc.get()).data();
-  if (!callData || !callData.offer) {
-    alert("No call found with that ID or offer not present.");
-    return;
-  }
+  const offerDescription = await pc.createOffer();
+  await pc.setLocalDescription(offerDescription);
 
-  const offerDescription = callData.offer;
-  await pc.setRemoteDescription(new RTCSessionDescription(offerDescription));
-
-  const answerDescription = await pc.createAnswer();
-  await pc.setLocalDescription(answerDescription);
-
-  const answer = {
-    type: answerDescription.type,
-    sdp: answerDescription.sdp,
+  const offer = {
+    sdp: offerDescription.sdp,
+    type: offerDescription.type,
   };
 
-  await callDoc.update({ answer });
+  await callDoc.set({ offer });
 
-  offerCandidates.onSnapshot((snapshot) => {
+  callDoc.onSnapshot((snapshot) => {
+    const data = snapshot.data();
+    if (data?.answer && !pc.currentRemoteDescription) {
+      const answerDescription = new RTCSessionDescription(data.answer);
+      pc.setRemoteDescription(answerDescription);
+    }
+  });
+
+  answerCandidates.onSnapshot((snapshot) => {
     snapshot.docChanges().forEach((change) => {
       if (change.type === 'added') {
-        let data = change.doc.data();
-        pc.addIceCandidate(new RTCIceCandidate(data));
+        const candidate = new RTCIceCandidate(change.doc.data());
+        pc.addIceCandidate(candidate);
       }
     });
   });
 
   hangupButton.disabled = false;
-  answerButton.disabled = true;
+  callButton.disabled = true;
 };
 
 hangupButton.onclick = () => {

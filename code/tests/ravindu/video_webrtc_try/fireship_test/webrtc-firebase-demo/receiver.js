@@ -19,10 +19,10 @@ const firestore = firebase.firestore();
 
 const servers = {
   iceServers: [
-    {
-      urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'],
-    },
-        // Free public TURN server (example)
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+
+    // Free public TURN server (example)
     {
       urls: 'turn:relay.metered.ca:80',
       username: 'openai',
@@ -36,6 +36,7 @@ const servers = {
   ],
   iceCandidatePoolSize: 10,
 };
+
 
 let pc = null;
 let localStream = null;

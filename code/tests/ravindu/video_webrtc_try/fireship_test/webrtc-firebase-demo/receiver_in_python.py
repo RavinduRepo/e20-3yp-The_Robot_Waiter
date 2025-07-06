@@ -13,20 +13,15 @@ firebase_admin.initialize_app(cred)
 db = firestore.client()
 
 # ICE servers
+from aiortc import RTCIceServer
+
 ICE_SERVERS = [
-    {"urls": "stun:stun.l.google.com:19302"},
-    {"urls": "stun:stun1.l.google.com:19302"},
-    {
-        "urls": "turn:relay.metered.ca:80",
-        "username": "openai",
-        "credential": "openai"
-    },
-    {
-        "urls": "turn:relay.metered.ca:443",
-        "username": "openai",
-        "credential": "openai"
-    }
+    RTCIceServer(urls="stun:stun.l.google.com:19302"),
+    RTCIceServer(urls="stun:stun1.l.google.com:19302"),
+    RTCIceServer(urls="turn:relay.metered.ca:80", username="openai", credential="openai"),
+    RTCIceServer(urls="turn:relay.metered.ca:443", username="openai", credential="openai")
 ]
+
 
 # Play received audio using PyAudio
 class AudioReceiver(MediaStreamTrack):

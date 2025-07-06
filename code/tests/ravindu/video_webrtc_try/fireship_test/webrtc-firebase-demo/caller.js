@@ -1,3 +1,4 @@
+// caller.js
 import './style.css';
 import firebase from 'firebase/app';
 import 'firebase/firestore';
@@ -76,13 +77,15 @@ webcamButton.onclick = async () => {
   // Prompt user to allow camera/microphone access
   alert('This site needs access to your camera and microphone. Please click "Allow" in your browser prompt.');
   try {
-    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
     webcamVideo.srcObject = localStream;
     pc = new RTCPeerConnection(servers);
 
     localStream.getTracks().forEach((track) => {
       pc.addTrack(track, localStream);
     });
+
+    pc.addTransceiver('video', { direction: 'recvonly' });
 
     pc.ontrack = (event) => {
       if (remoteVideo.srcObject !== event.streams[0]) {

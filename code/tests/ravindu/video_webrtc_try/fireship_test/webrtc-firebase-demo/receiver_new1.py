@@ -78,12 +78,12 @@ async def main(call_id):
         for change in changes:
             if change.type.name == 'ADDED':
                 data = change.document.to_dict()
-                candidate = RTCIceCandidate(
-                    data["candidate"],
-                    sdpMid=data["sdpMid"],
-                    sdpMLineIndex=data["sdpMLineIndex"]
-                )
-                asyncio.ensure_future(pc.addIceCandidate(candidate))
+                candidate_dict = {
+                    "candidate": data["candidate"],
+                    "sdpMid": data["sdpMid"],
+                    "sdpMLineIndex": data["sdpMLineIndex"]
+                }
+                asyncio.ensure_future(pc.addIceCandidate(candidate_dict))
     offer_candidates_ref.on_snapshot(on_snapshot)
 
     # Just wait forever (or until connection closes)

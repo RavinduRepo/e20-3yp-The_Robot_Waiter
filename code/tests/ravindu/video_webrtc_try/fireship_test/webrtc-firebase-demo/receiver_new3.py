@@ -67,17 +67,19 @@ class MicrophoneAudioTrack(AudioStreamTrack):
         self.stream.start()
 
     async def recv(self):
-        # WebRTC expects 20ms of audio at 48kHz => 960 samples
         frame, _ = self.stream.read(960)
         print("[AUDIO DEBUG] frame shape:", frame.shape, "dtype:", frame.dtype, "min:", np.min(frame), "max:", np.max(frame))
-        frame = np.squeeze(frame)  # Ensure it's a 1D array
+        frame = np.squeeze(frame)  # (960,)
 
-        # Get timing info
+        # Duplicate mono to stereo
+        if len(frame.shape) == 1:
+            frame = np.stack([frame, frame], axis=0).T  # (960, 2)
+
         pts, time_base = await self.next_timestamp()
         print(f"[AUDIO DEBUG] pts: {pts}, time_base: {time_base}")
 
-        # Create an AV audio frame
-        audio_frame = av.AudioFrame.from_ndarray(frame, format="s16", layout="mono")
+        # Create an AV audio frame as stereo
+        audio_frame = av.AudioFrame.from_ndarray(frame, format="s16", layout="stereo")
         audio_frame.sample_rate = self.samplerate
         audio_frame.pts = pts
         audio_frame.time_base = time_base

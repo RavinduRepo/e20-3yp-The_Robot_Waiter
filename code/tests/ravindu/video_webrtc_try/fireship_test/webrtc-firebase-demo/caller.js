@@ -85,7 +85,9 @@ webcamButton.onclick = async () => {
       pc.addTrack(track, localStream);
     });
 
+    // Ensure the browser is ready to receive both video and audio from the remote peer
     pc.addTransceiver('video', { direction: 'recvonly' });
+    pc.addTransceiver('audio', { direction: 'recvonly' });
 
     pc.ontrack = (event) => {
       if (remoteVideo.srcObject !== event.streams[0]) {

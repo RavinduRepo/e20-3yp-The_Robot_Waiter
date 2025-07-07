@@ -66,7 +66,7 @@ async def main(call_id):
     await pc.setLocalDescription(answer)
 
     # Send answer
-    await call_ref.update({
+    call_ref.update({
         "answer": {
             "type": pc.localDescription.type,
             "sdp": pc.localDescription.sdp

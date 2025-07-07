@@ -67,7 +67,7 @@ async def main(call_id):
         return
 
     # Add a dummy data channel to ensure ICE gathering starts
-    pc.createDataChannel("chat")
+    # pc.createDataChannel("chat")
 
     await pc.setRemoteDescription(RTCSessionDescription(sdp=offer["sdp"], type=offer["type"]))
 

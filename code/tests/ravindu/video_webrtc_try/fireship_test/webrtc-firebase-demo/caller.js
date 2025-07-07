@@ -1,3 +1,4 @@
+// caller.js
 import './style.css';
 import firebase from 'firebase/app';
 import 'firebase/firestore';
@@ -21,12 +22,24 @@ const firestore = firebase.firestore();
 
 const servers = {
   iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+
+    // Free public TURN server (example)
     {
-      urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'],
+      urls: 'turn:relay.metered.ca:80',
+      username: 'openai',
+      credential: 'openai'
     },
+    {
+      urls: 'turn:relay.metered.ca:443',
+      username: 'openai',
+      credential: 'openai'
+    }
   ],
   iceCandidatePoolSize: 10,
 };
+
 
 let pc = null;
 let localStream = null;
@@ -64,13 +77,15 @@ webcamButton.onclick = async () => {
   // Prompt user to allow camera/microphone access
   alert('This site needs access to your camera and microphone. Please click "Allow" in your browser prompt.');
   try {
-    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
     webcamVideo.srcObject = localStream;
     pc = new RTCPeerConnection(servers);
 
     localStream.getTracks().forEach((track) => {
       pc.addTrack(track, localStream);
     });
+
+    pc.addTransceiver('video', { direction: 'recvonly' });
 
     pc.ontrack = (event) => {
       if (remoteVideo.srcObject !== event.streams[0]) {

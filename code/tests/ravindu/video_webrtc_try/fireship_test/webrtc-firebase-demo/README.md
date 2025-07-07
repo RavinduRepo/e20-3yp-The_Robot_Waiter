@@ -15,3 +15,15 @@ npm install
 
 npm run dev
 ```
+
+
+RAVINDU ADDITIONS
+
+receiver and caller in web works, 
+
+to run receiver in python :
+
+pip install aiortc firebase-admin pyaudio
+
+run:
+python receiver_in_python.py YOUR_CALL_ID

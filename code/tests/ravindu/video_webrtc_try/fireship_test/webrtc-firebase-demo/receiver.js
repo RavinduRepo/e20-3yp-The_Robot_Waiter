@@ -1,3 +1,4 @@
+// receiver.js
 import './style.css';
 import firebase from 'firebase/app';
 import 'firebase/firestore';
@@ -19,12 +20,24 @@ const firestore = firebase.firestore();
 
 const servers = {
   iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+
+    // Free public TURN server (example)
     {
-      urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'],
+      urls: 'turn:relay.metered.ca:80',
+      username: 'openai',
+      credential: 'openai'
     },
+    {
+      urls: 'turn:relay.metered.ca:443',
+      username: 'openai',
+      credential: 'openai'
+    }
   ],
   iceCandidatePoolSize: 10,
 };
+
 
 let pc = null;
 let localStream = null;

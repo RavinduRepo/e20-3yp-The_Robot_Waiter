@@ -83,7 +83,7 @@ def check_websocket_connection(driver):
     try:
         websocket_status = driver.execute_script("""
             return window.webSocketManager ? 
-                   (window.webSocketManager.wss ? window.webSocketManager.wss.readyState : 'No WebSocket') : 
+                   (window.webSocketManager.ws ? window.webSocketManager.ws.readyState : 'No WebSocket') : 
                    'No WebSocketManager';
         """)
         

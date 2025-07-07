@@ -2,27 +2,30 @@ import asyncio
 import json
 import firebase_admin
 from firebase_admin import credentials, firestore
-from aiortc import RTCPeerConnection, RTCSessionDescription, RTCIceCandidate
+from aiortc import RTCPeerConnection, RTCConfiguration, RTCIceServer
 
-# Your ICE servers
-ICE_SERVERS = [
-    {
-        'urls': 'stun:stun.l.google.com:19302'
-    },
-    {
-        'urls': 'stun:stun1.l.google.com:19302'
-    },
-    {
-        'urls': 'turn:relay.metered.ca:80',
-        'username': 'openai',
-        'credential': 'openai'
-    },
-    {
-        'urls': 'turn:relay.metered.ca:443',
-        'username': 'openai',
-        'credential': 'openai'
-    }
+# Build the ICE servers list
+ice_servers = [
+    RTCIceServer(urls=["stun:stun.l.google.com:19302"]),
+    RTCIceServer(urls=["stun:stun1.l.google.com:19302"]),
+    RTCIceServer(
+        urls=["turn:relay.metered.ca:80"],
+        username="openai",
+        credential="openai"
+    ),
+    RTCIceServer(
+        urls=["turn:relay.metered.ca:443"],
+        username="openai",
+        credential="openai"
+    ),
 ]
+
+# Build the config object
+config = RTCConfiguration(iceServers=ice_servers)
+
+# Create the peer connection
+pc = RTCPeerConnection(configuration=config)
+
 
 async def main(call_id):
     # Initialize Firebase

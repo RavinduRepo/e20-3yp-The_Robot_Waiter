@@ -44,12 +44,16 @@ async def main(call_id):
     # Set up ICE candidate gathering
     @pc.on("icecandidate")
     async def on_icecandidate(candidate):
+        print("ICE candidate event:", candidate)
         if candidate:
-            await answer_candidates_ref.add({
+            result = await answer_candidates_ref.add({
                 "candidate": candidate.candidate,
                 "sdpMid": candidate.sdpMid,
                 "sdpMLineIndex": candidate.sdpMLineIndex
             })
+            print("Candidate sent to Firestore:", result)
+        else:
+            print("ICE candidate event: None (gathering complete)")
 
     # Get offer
     call_doc = call_ref.get()

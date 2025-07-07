@@ -62,15 +62,26 @@ class MicrophoneAudioTrack(AudioStreamTrack):
             channels=self.channels,
             samplerate=self.samplerate,
             dtype='int16',
-            blocksize=960,  # 20ms at 48kHz
+            blocksize=960,  # 20ms of audio
         )
         self.stream.start()
 
     async def recv(self):
+        # WebRTC expects 20ms of audio at 48kHz => 960 samples
         frame, _ = self.stream.read(960)
-        audio_frame = av.AudioFrame.from_ndarray(frame, format='s16', layout='mono')
+        frame = np.squeeze(frame)  # Ensure it's a 1D array
+
+        # Get timing info
+        pts, time_base = await self.next_timestamp()
+
+        # Create an AV audio frame
+        audio_frame = av.AudioFrame.from_ndarray(frame, format="s16", layout="mono")
         audio_frame.sample_rate = self.samplerate
+        audio_frame.pts = pts
+        audio_frame.time_base = time_base
+
         return audio_frame
+
 
 async def main(call_id):
     # Initialize Firebase only if not already initialized

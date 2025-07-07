@@ -80,6 +80,23 @@ Comprehensive testing of both hardware and software components:
 
 ---
 
+| **Item**           | **Description**                   | **Quantity** | **Unit Price (LKR)** | **Cost (LKR)** |
+| ------------------ | --------------------------------- | ------------ | -------------------- | -------------- |
+| Camera Module      | Raspberry Pi Camera Module 1      | 1            | 1800                 | 1800           |
+| Raspberry Pi 3 B   | 1.4GHz 64-bit Quad-Core Processor | 1            | 20000                | 20000          |
+| Wheels             | Rubber Wheels                     | 4            | 190                  | 760            |
+| Battery            | 12V UPS Battery                   | 1            | 5000                 | 5000           |
+| Motors             | JGB 520 100 RPM Gear Motors       | 4            | 1390                 | 5560           |
+| Charger            | 12V Charger                       | 1            | 2500                 | 2500           |
+| Display            | HDMI Display                      | 1            | 6000                 | 6000           |
+| Buck Converter     | 12V to 5V                         | 1            | 150                  | 150            |
+| Ultrasonic Sensors | HC-SR04                           | 2            | 500                  | 1000           |
+| Tray Frame         | Aluminium                         | 1            | 2000                 | 2000           |
+| Chassis            | Wooden chassis & assembly cost    | 1            | 1000                 | 1000           |
+| Lathe Works        | Axle lathe                        | 4            | 600                  | 2400           |
+
+|                    |                                   |              |                      |**Total: 49,970 LKR** |
+
 ## Conclusion
 
 The Robot Waiter project aims to revolutionize the hospitality industry by providing a practical, remotely controlled robot capable of efficient service. Future developments could include integrating AI for automation, enhancing the robot's scalability, and exploring commercialization opportunities.

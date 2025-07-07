@@ -66,6 +66,9 @@ async def main(call_id):
         print(f"No offer found in call {call_id}")
         return
 
+    # Add a dummy data channel to ensure ICE gathering starts
+    pc.createDataChannel("chat")
+
     await pc.setRemoteDescription(RTCSessionDescription(sdp=offer["sdp"], type=offer["type"]))
 
     # Create and set local answer

@@ -55,7 +55,7 @@
           </div>
           <div class="hero-image-box">
             <video width="650px" height="auto" controls autoplay loop>
-              <source src="./images/robot-waiter.mp4" type="video/mp4" />
+              <source src="./assets/videos/robot-waiter.mp4" type="video/mp4" />
               Your browser does not support the video tag.
             </video>
           </div>
@@ -83,6 +83,38 @@ The impact of this solution includes improved service efficiency, reduced labor 
           <img src="./images/image_2025-03-04_194604511.png" alt="System Design Image" />
         </div>
       </section>
+
+      <section id="system-flow" class="section-system-flow">
+  <h1>System Flow Overview</h1>
+  <div class="flow-container">
+    <div class="flow-step" data-desc="Admin panel allows managing employees and robots. Acts as the central controller.">
+      <i class="ri-user-settings-line"></i>
+      <h3>Admin</h3>
+    </div>
+    <div class="flow-step" data-desc="Employees can register/login and access robot control interface.">
+      <i class="ri-user-line"></i>
+      <h3>Employee Interface</h3>
+    </div>
+    <div class="flow-step" data-desc="After login, employee sends MQTT request with robot ID to AWS.">
+      <i class="ri-send-plane-line"></i>
+      <h3>MQTT to AWS</h3>
+    </div>
+    <div class="flow-step" data-desc="Robot logs in and shares its info with the backend via WebSocket.">
+      <i class="ri-robot-line"></i>
+      <h3>Robot Interface</h3>
+    </div>
+    <div class="flow-step" data-desc="AWS listens to employee request via subscribed endpoint. Sends it to robot.">
+      <i class="ri-cloud-line"></i>
+      <h3>AWS Routing</h3>
+    </div>
+    <div class="flow-step" data-desc="Robot receives and executes commands from the employee.">
+      <i class="ri-wifi-line"></i>
+      <h3>Real-Time Control</h3>
+    </div>
+  </div>
+  <p id="step-desc" class="flow-tooltip">Hover over a step to see more info</p>
+</section>
+
 
       <!-- BUDGET SECTION -->
       <section id="budget" class="section-budget">
@@ -118,15 +150,15 @@ WebSockets Integration: Ensured real-time data exchange between the frontend and
           <!-- Example Team Member -->
           <div class="team-card">
             <div class="img-wrapper">
-              <img class="team-img" src="./images/profile_picture.jpeg" alt="Team Member" />
+              <img class="team-img" src="./images/team/member1.jpg" alt="Team Member" />
             </div>
             <p class="name">P.A.WICKRAMARACHCHI</p>
             <p class="role">E/20/434</p>
             <div class="social-media-links">
-              <a href="https://github.com/E20434" target="_blank">
+              <a href="https://github.com/johndoe" target="_blank">
                 <i class="ri-github-fill ri-2x"></i>
               </a>
-              <a href="https://www.linkedin.com/in/p-a-wickramaarachchi-32a734280/" target="_blank">
+              <a href="https://www.linkedin.com/in/johndoe" target="_blank">
                 <i class="ri-linkedin-box-fill ri-2x"></i>
               </a>
               <a href="mailto:johndoe@example.com" target="_blank">
@@ -138,15 +170,15 @@ WebSockets Integration: Ensured real-time data exchange between the frontend and
             <!-- Example Team Member -->
             <div class="team-card">
               <div class="img-wrapper">
-                <img class="team-img" src="./images/member2.jpg" alt="Team Member" />
+                <img class="team-img" src="./images/team/member1.jpg" alt="Team Member" />
               </div>
               <p class="name">A.I.FERNANDO</p>
               <p class="role">E/20/100</p>
               <div class="social-media-links">
-                <a href="https://github.com/AIFERNANDOE20100" target="_blank">
+                <a href="https://github.com/johndoe" target="_blank">
                   <i class="ri-github-fill ri-2x"></i>
                 </a>
-                <a href="https://www.linkedin.com/in/a-i-fernando-715677315/?utm_source=share&utm_campaign=share_via&utm_content=profile&utm_medium=android_app" target="_blank">
+                <a href="https://www.linkedin.com/in/johndoe" target="_blank">
                   <i class="ri-linkedin-box-fill ri-2x"></i>
                 </a>
                 <a href="mailto:johndoe@example.com" target="_blank">
@@ -158,15 +190,15 @@ WebSockets Integration: Ensured real-time data exchange between the frontend and
                 <!-- Example Team Member -->
                 <div class="team-card">
                   <div class="img-wrapper">
-                    <img class="team-img" src="./images/member1.jpg" alt="Team Member" />
+                    <img class="team-img" src="./images/team/member1.jpg" alt="Team Member" />
                   </div>
                   <p class="name">PATHIRAGE R.S</p>
                   <p class="role">E/20/280</p>
                   <div class="social-media-links">
-                    <a href="https://github.com/RavinduRepo" target="_blank">
+                    <a href="https://github.com/johndoe" target="_blank">
                       <i class="ri-github-fill ri-2x"></i>
                     </a>
-                    <a href="https://www.linkedin.com/in/ravindu-pathirage-228b66254/" target="_blank">
+                    <a href="https://www.linkedin.com/in/johndoe" target="_blank">
                       <i class="ri-linkedin-box-fill ri-2x"></i>
                     </a>
                     <a href="mailto:johndoe@example.com" target="_blank">
@@ -178,15 +210,15 @@ WebSockets Integration: Ensured real-time data exchange between the frontend and
                     <!-- Example Team Member -->
                     <div class="team-card">
                       <div class="img-wrapper">
-                        <img class="team-img" src="./images/member3.jpg" alt="Team Member" />
+                        <img class="team-img" src="./images/team/member1.jpg" alt="Team Member" />
                       </div>
                       <p class="name">MALINTHA K.M.K</p>
                       <p class="role">E/20/243</p>
                       <div class="social-media-links">
-                        <a href="https://github.com/kushanmalintha" target="_blank">
+                        <a href="https://github.com/johndoe" target="_blank">
                           <i class="ri-github-fill ri-2x"></i>
                         </a>
-                        <a href="https://www.linkedin.com/in/kushan-malintha-7230b12b9/" target="_blank">
+                        <a href="https://www.linkedin.com/in/johndoe" target="_blank">
                           <i class="ri-linkedin-box-fill ri-2x"></i>
                         </a>
                         <a href="mailto:johndoe@example.com" target="_blank">

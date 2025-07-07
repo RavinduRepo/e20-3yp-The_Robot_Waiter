@@ -79,9 +79,9 @@ async def main(call_id):
             if change.type.name == 'ADDED':
                 data = change.document.to_dict()
                 candidate = RTCIceCandidate(
+                    data["candidate"],
                     sdpMid=data["sdpMid"],
-                    sdpMLineIndex=data["sdpMLineIndex"],
-                    candidate=data["candidate"]
+                    sdpMLineIndex=data["sdpMLineIndex"]
                 )
                 asyncio.ensure_future(pc.addIceCandidate(candidate))
     offer_candidates_ref.on_snapshot(on_snapshot)

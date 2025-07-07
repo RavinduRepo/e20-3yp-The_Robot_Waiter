@@ -66,17 +66,8 @@ async def main(call_id):
         print(f"No offer found in call {call_id}")
         return
 
-    from aiortc import MediaStreamTrack
-
-    class DummyAudioTrack(MediaStreamTrack):
-        kind = "audio"
-        async def recv(self):
-            # Return silence or dummy data
-            await asyncio.sleep(0.02)
-            return None
-
-    # Add this to your peer connection before createAnswer()
-    pc.addTrack(DummyAudioTrack())
+    # Add a dummy data channel to ensure ICE gathering starts
+    pc.createDataChannel("chat")
 
     await pc.setRemoteDescription(RTCSessionDescription(sdp=offer["sdp"], type=offer["type"]))
 

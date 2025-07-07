@@ -32,6 +32,7 @@ h1 {
   font-size: 3.5rem;
   background: linear-gradient(90deg, var(--secondary), var(--primary));
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
@@ -577,4 +578,95 @@ html {
 .hero-content {
   position: relative;
   z-index: 2;
+}
+
+.section-system-flow {
+  padding: 8rem 5rem;
+  background-color: var(--dark);
+  color: var(--light);
+  text-align: center;
+  position: relative;
+}
+
+.flow-container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2rem;
+  margin-top: 4rem;
+  position: relative;
+}
+
+.flow-step {
+  background-color: rgba(255, 255, 255, 0.03);
+  border: 2px solid transparent;
+  border-radius: 12px;
+  padding: 2rem 1.5rem;
+  width: 180px;
+  min-height: 180px;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: center;
+}
+
+.flow-step:hover {
+  background-color: rgba(0, 255, 200, 0.08);
+  border-color: var(--secondary);
+  transform: translateY(-5px);
+}
+
+.flow-step i {
+  font-size: 2.5rem;
+  color: var(--secondary);
+  margin-bottom: 1rem;
+  display: block;
+}
+
+.flow-step h3 {
+  font-size: 1.1rem;
+  margin-top: 0.5rem;
+  color: var(--light);
+}
+
+.flow-container .flow-step::after {
+  content: '→';
+  font-size: 2rem;
+  position: absolute;
+  top: 50%;
+  right: -1.5rem;
+  transform: translateY(-50%);
+  color: var(--secondary);
+}
+
+.flow-container .flow-step:last-child::after {
+  content: '';
+}
+
+.flow-tooltip {
+  margin-top: 3rem;
+  font-size: 1.1rem;
+  color: var(--secondary);
+  font-weight: 500;
+  transition: opacity 0.3s ease;
+}
+
+/* Responsive Flow */
+@media (max-width: 768px) {
+  .flow-container {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .flow-step::after {
+    content: '↓';
+    right: 50%;
+    top: auto;
+    bottom: -1.5rem;
+    transform: translateX(50%);
+  }
+
+  .flow-container .flow-step:last-child::after {
+    content: '';
+  }
 }

@@ -2,39 +2,36 @@ import asyncio
 import json
 import firebase_admin
 from firebase_admin import credentials, firestore
-from aiortc import RTCPeerConnection, RTCSessionDescription, RTCIceCandidate
+from aiortc import RTCPeerConnection, RTCConfiguration, RTCIceServer, RTCSessionDescription, RTCIceCandidate
 
-# Your ICE servers
-from aiortc import RTCConfiguration, RTCIceServer
-
-# Your ICE servers
-ICE_SERVERS = [
-    RTCIceServer(urls='stun:stun.l.google.com:19302'),
-    RTCIceServer(urls='stun:stun1.l.google.com:19302'),
+# Build the ICE servers list
+ice_servers = [
+    RTCIceServer(urls=["stun:stun.l.google.com:19302"]),
+    RTCIceServer(urls=["stun:stun1.l.google.com:19302"]),
     RTCIceServer(
-        urls='turn:relay.metered.ca:80',
-        username='openai',
-        credential='openai'
+        urls=["turn:relay.metered.ca:80"],
+        username="openai",
+        credential="openai"
     ),
     RTCIceServer(
-        urls='turn:relay.metered.ca:443',
-        username='openai',
-        credential='openai'
-    )
+        urls=["turn:relay.metered.ca:443"],
+        username="openai",
+        credential="openai"
+    ),
 ]
 
-# When creating the connection:
-pc = RTCPeerConnection(configuration=RTCConfiguration(iceServers=ICE_SERVERS))
-
+# Build the config object
+config = RTCConfiguration(iceServers=ice_servers)
 
 async def main(call_id):
-    # Initialize Firebase
-    cred = credentials.Certificate('serviceAccountKey.json')
-    firebase_admin.initialize_app(cred)
+    # Initialize Firebase only if not already initialized
+    if not firebase_admin._apps:
+        cred = credentials.Certificate('serviceAccountKey.json')
+        firebase_admin.initialize_app(cred)
     db = firestore.client()
 
     # Create RTCPeerConnection
-    pc = RTCPeerConnection(configuration={"iceServers": ICE_SERVERS})
+    pc = RTCPeerConnection(configuration=config)
 
     # Connect to Firestore
     call_ref = db.collection('calls').document(call_id)
@@ -78,7 +75,6 @@ async def main(call_id):
                     candidate=data["candidate"]
                 )
                 asyncio.ensure_future(pc.addIceCandidate(candidate))
-    
     offer_candidates_ref.on_snapshot(on_snapshot)
 
     # Just wait forever (or until connection closes)

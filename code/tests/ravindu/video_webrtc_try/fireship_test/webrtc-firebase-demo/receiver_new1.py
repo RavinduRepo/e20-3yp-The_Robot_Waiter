@@ -30,6 +30,9 @@ async def main(call_id):
         firebase_admin.initialize_app(cred)
     db = firestore.client()
 
+    # Get the current event loop
+    loop = asyncio.get_running_loop()
+
     # Create RTCPeerConnection
     pc = RTCPeerConnection(configuration=config)
 
@@ -83,7 +86,7 @@ async def main(call_id):
                     "sdpMid": data["sdpMid"],
                     "sdpMLineIndex": data["sdpMLineIndex"]
                 }
-                asyncio.ensure_future(pc.addIceCandidate(candidate_dict))
+                asyncio.run_coroutine_threadsafe(pc.addIceCandidate(candidate_dict), loop)
     offer_candidates_ref.on_snapshot(on_snapshot)
 
     # Just wait forever (or until connection closes)

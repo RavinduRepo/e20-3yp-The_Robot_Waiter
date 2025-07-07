@@ -42,7 +42,11 @@ async def main(call_id):
     @pc.on("icecandidate")
     async def on_icecandidate(candidate):
         if candidate:
-            await answer_candidates_ref.add(candidate.toJSON())
+            await answer_candidates_ref.add({
+                "candidate": candidate.candidate,
+                "sdpMid": candidate.sdpMid,
+                "sdpMLineIndex": candidate.sdpMLineIndex
+            })
 
     # Get offer
     call_doc = call_ref.get()
@@ -62,7 +66,12 @@ async def main(call_id):
     await pc.setLocalDescription(answer)
 
     # Send answer
-    await call_ref.update({"answer": pc.localDescription.toJSON()})
+    await call_ref.update({
+        "answer": {
+            "type": pc.localDescription.type,
+            "sdp": pc.localDescription.sdp
+        }
+    })
 
     # Listen for remote ICE candidates
     def on_snapshot(col_snapshot, changes, read_time):

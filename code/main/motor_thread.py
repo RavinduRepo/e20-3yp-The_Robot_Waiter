@@ -218,7 +218,7 @@ def monitor_obstacles():
 
 # === MQTT message handler ===
 def customCallback(client, userdata, message):
-    global motor_timer, system_running
+    global motor_timer, system_running, video_process
     
     if not system_running:
         return

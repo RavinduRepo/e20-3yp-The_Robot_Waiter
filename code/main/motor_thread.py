@@ -9,6 +9,8 @@ import sys
 from AWSIoTPythonSDK.MQTTLib import AWSIoTMQTTClient
 from ultrasonic_thread2 import measure_distance
 import RPi.GPIO as GPIO
+import subprocess
+import signal
 
 # Motor GPIO pins
 IN1, IN2 = 13, 27
@@ -30,6 +32,7 @@ mqtt_client = None
 ultrasonic_process = None
 obstacle_process = None
 system_running = True
+video_process = None
 
 # Configuration files
 MQTT_LOG_FILE = "mqtt_data_log.json"
@@ -86,7 +89,12 @@ def cleanup_and_exit():
         if obstacle_process.is_alive():
             obstacle_process.kill()
         print("🚧 Obstacle monitoring process terminated")
-    
+
+    if video_process and video_process.poll() is None:
+        print("🛑 Terminating video process...")
+        video_process.terminate()
+        video_process.wait()
+
     # GPIO cleanup
     GPIO.cleanup()
     print("🔌 GPIO cleaned up")
@@ -232,7 +240,21 @@ def customCallback(client, userdata, message):
                 print("🔄 Reconnect command received")
                 reconnect_system()
                 return
-                
+            if msg_data.get("type") == "videocall_on" and msg_data.get("callId"):
+                call_id = msg_data["callId"]
+                if video_process is None:
+                    print(f"📞 Starting video call process with Call ID: {call_id}")
+                    video_process = subprocess.Popen(["python3", "video_call_manager.py", call_id])
+                return
+
+            elif msg_data.get("type") == "videocall_off":
+                if video_process and video_process.poll() is None:
+                    print("📴 Stopping video call process...")
+                    video_process.send_signal(signal.SIGINT)
+                    video_process.wait()
+                    video_process = None
+                return
+
         except json.JSONDecodeError:
             pass  # Not a JSON message, handle as regular control command
         

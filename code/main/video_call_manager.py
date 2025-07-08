@@ -147,3 +147,20 @@ def terminate_webrtc():
         print("[x] Closing peer connection")
         pc.close()
         pc = None
+
+
+if __name__ == "__main__":
+    import sys
+    if len(sys.argv) < 2:
+        print("Usage: python receiver.py CALL_ID")
+        sys.exit(1)
+
+    call_id = sys.argv[1]
+    print(f"Starting WebRTC receiver for call ID: {call_id}")
+    
+    try:
+        asyncio.run(main(call_id))
+    except KeyboardInterrupt:
+        print("Receiver stopped by user")
+    except Exception as e:
+        print(f"Receiver failed: {e}")

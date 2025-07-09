@@ -94,7 +94,7 @@ class MicrophoneAudioTrack(MediaStreamTrack):
             time_base = fractions.Fraction(1, self.samplerate)
             self.sequence += 1
 
-            audio_frame = AudioFrame.from_ndarray(frame, format="s16", layout="stereo")
+            audio_frame = av.AudioFrame.from_ndarray(frame, format="s16", layout="stereo")
             audio_frame.sample_rate = self.samplerate
             audio_frame.pts = pts
             audio_frame.time_base = time_base

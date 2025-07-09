@@ -29,9 +29,9 @@ The Robot Waiter is a remotely controlled service robot designed to assist in th
 
 ---
 
-##step by step
+# step by step
 
-🧠 Step 1: Understand the Roles in the System
+##  🧠 Step 1: Understand the Roles in the System
 There are three main players in this system:
 
 Admin – The boss. Controls everything.
@@ -40,7 +40,7 @@ Employee – Waiters or staff who control the robots.
 
 Robot – The actual robot that does tasks (like delivering food).
 
-🏗 Step 2: What the System is Made Of (Architecture)
+##  🏗 Step 2: What the System is Made Of (Architecture)
 The system is made of different parts that talk to each other:
 
 A cloud database (Firebase) to store information.
@@ -53,7 +53,7 @@ A web interface for employees and admin to log in and control things.
 
 A temporary communication channel (WebSocket) used once to share robot info.
 
-🔐 Step 3: Admin Sets Up the System
+##  🔐 Step 3: Admin Sets Up the System
 What Admin Can Do:
 Signs up to the system (using email/password).
 
@@ -65,14 +65,14 @@ Sees a dashboard of robots and employees.
 
 ✅ After this, the system is ready to be used.
 
-👨‍🍳 Step 4: Employee Logs In
+## 👨‍🍳 Step 4: Employee Logs In
 Employee goes to the website.
 
 Logs in using the credentials given by the Admin.
 
 Can now see a list of available robots.
 
-🤖 Step 5: Robot is Powered On and Connects to Backend
+##  🤖 Step 5: Robot is Powered On and Connects to Backend
 When a robot is turned on:
 
 The robot backend program (in Python) starts running on the robot.
@@ -81,12 +81,12 @@ It waits for a message from the cloud using AWS MQTT on the topic /connect.
 
 It does nothing until an employee selects it.
 
-📱 Step 6: Employee Selects a Robot
+##  📱 Step 6: Employee Selects a Robot
 From their interface, the employee selects a robot from the list.
 
 The selected robot's ID is sent to AWS MQTT to a special channel: /connect.
 
-🔁 Step 7: Robot Backend Receives the Connection Request
+##  🔁 Step 7: Robot Backend Receives the Connection Request
 The robot:
 
 Was listening to the /connect channel.
@@ -95,7 +95,7 @@ Now sees a message with its ID.
 
 Once it sees this, it starts a WebSocket connection with the robot’s frontend interface.
 
-🌐 Step 8: Robot Shares Its Info Temporarily via WebSocket
+##  🌐 Step 8: Robot Shares Its Info Temporarily via WebSocket
 The robot and its frontend:
 
 Can’t talk directly, so they use a WebSocket tunnel (temporary).
@@ -104,14 +104,14 @@ Through this tunnel, the robot shares its details (status, availability, etc.).
 
 These details go to the Firebase database.
 
-🔚 Step 9: WebSocket is Closed
+##  🔚 Step 9: WebSocket is Closed
 After sharing its info, the WebSocket is closed.
 
 From now on, Firebase stores the robot data.
 
 Backend no longer talks to the frontend directly.
 
-📡 Step 10: System Enters Communication Mode (Live Control)
+##  📡 Step 10: System Enters Communication Mode (Live Control)
 Now everything is set up for real-time control:
 
 Robot:
@@ -126,14 +126,14 @@ Sends commands to the robot by publishing to the same topic (robot/123/commands)
 
 This is how they “talk” to each other.
 
-🔁 Step 11: Real-Time Interaction
+##  🔁 Step 11: Real-Time Interaction
 Employee presses buttons on their interface (like a remote).
 
 Each button sends a command through AWS MQTT.
 
 Robot receives the command and moves accordingly.
 
-🔄 Step 12: Repeat as Needed
+##  🔄 Step 12: Repeat as Needed
 The robot can update its status to Firebase.
 
 Admin or employee can monitor it.

@@ -82,8 +82,8 @@ class MicrophoneAudioTrack(MediaStreamTrack):
 
     async def recv(self):
         try:
-            # Read a block of audio samples (20ms)
-            frame, _ = self.stream.read(self.blocksize)
+            # Read a block of audio samples (20ms) with blocking read
+            frame, overflowed = self.stream.read(self.blocksize, timeout=0.1)
             frame = np.squeeze(frame)
 
             # # Optional: record

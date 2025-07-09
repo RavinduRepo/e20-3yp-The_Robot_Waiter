@@ -57,7 +57,7 @@ class MicrophoneAudioTrack(MediaStreamTrack):
     kind = "audio"
 
     def __init__(self, device=None, samplerate=48000, channels=1):
-        super().__init__()  # initialize base class
+        super().__init__()
         self.device = device
         self.samplerate = samplerate
         self.channels = channels
@@ -71,39 +71,40 @@ class MicrophoneAudioTrack(MediaStreamTrack):
         self.stream.start()
         self.sequence = 0
 
-        # Optional: Recording to file
         self.recorded_frames = []
         self.record_start_time = time.time()
         self.record_duration = 5
 
     async def recv(self):
         try:
-            frame, _ = self.stream.read(960)
+            frame, _ = self.stream.read(960)  # shape (960, channels)
             frame = np.squeeze(frame)
             print("Audio frame requested by peer...")
             print(f"Captured frame shape: {frame.shape}")
 
-            # Optional recording
             if time.time() - self.record_start_time < self.record_duration:
                 self.recorded_frames.append(frame.copy())
 
-            # Convert mono to stereo only if needed
+            # Determine layout and frame shape for av.AudioFrame
             if len(frame.shape) == 1:
-                frame = np.stack([frame, frame], axis=1)  # mono to stereo
-            elif frame.shape[1] != 2:
+                # Mono input: shape (samples,)
+                layout = "mono"
+                # av.AudioFrame expects 2D array (samples, channels)
+                frame = frame[:, None]  # make shape (samples,1)
+            elif len(frame.shape) == 2 and frame.shape[1] == 2:
+                layout = "stereo"
+            else:
                 raise ValueError(f"Unsupported audio shape: {frame.shape}")
 
-            # Manually assign PTS and time_base
             pts = self.sequence * 960
             time_base = fractions.Fraction(1, self.samplerate)
             self.sequence += 1
 
-            audio_frame = av.AudioFrame.from_ndarray(frame, format="s16", layout="stereo")
+            audio_frame = av.AudioFrame.from_ndarray(frame, format="s16", layout=layout)
             audio_frame.sample_rate = self.samplerate
             audio_frame.pts = pts
             audio_frame.time_base = time_base
 
-            # Save recorded audio after duration (once)
             if (time.time() - self.record_start_time >= self.record_duration
                     and self.recorded_frames):
                 try:
@@ -119,6 +120,7 @@ class MicrophoneAudioTrack(MediaStreamTrack):
         except Exception as e:
             print("[x] Error in recv():", e)
             return None
+
 
 
 # Global PC

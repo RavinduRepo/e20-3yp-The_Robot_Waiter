@@ -76,57 +76,58 @@ class MicrophoneAudioTrack(MediaStreamTrack):
         self.record_start_time = time.time()
         self.record_duration = 5
 
-async def recv(self):
-    try:
-        frame, _ = self.stream.read(self.blocksize)
-        frame = np.squeeze(frame)
-        print("Audio frame requested by peer...")
-        print(f"Captured frame shape: {frame.shape}")
+    async def recv(self):
+        try:
+            frame, _ = self.stream.read(960)
+            frame = np.squeeze(frame)
+            print("Audio frame requested by peer...")
+            print(f"Captured frame shape: {frame.shape}")
 
-        if time.time() - self.record_start_time < self.record_duration:
-            self.recorded_frames.append(frame.copy())
+            # Optional: Record audio
+            if time.time() - self.record_start_time < self.record_duration:
+                self.recorded_frames.append(frame.copy())
 
-        # Fix shape
-        if len(frame.shape) == 1:
-            frame = np.expand_dims(frame, axis=0)
-            layout = "mono"
-        elif frame.shape[1] == 1:
-            frame = frame.T
-            layout = "mono"
-        elif frame.shape[1] == 2:
-            frame = frame.T
-            layout = "stereo"
-        else:
-            raise ValueError(f"Unsupported audio shape: {frame.shape}")
+            # Fix shape and layout
+            if len(frame.shape) == 1:
+                # Mono shape (960,) → (1, 960)
+                frame = np.expand_dims(frame, axis=0)
+                layout = "mono"
+            elif frame.shape[1] == 1:
+                # Mono shape (960, 1) → (1, 960)
+                frame = frame.T
+                layout = "mono"
+            elif frame.shape[1] == 2:
+                # Stereo shape (960, 2) → (2, 960)
+                frame = frame.T
+                layout = "stereo"
+            else:
+                raise ValueError(f"Unsupported audio shape: {frame.shape}")
 
-        # Timestamps
-        pts = self.sequence * self.blocksize
-        time_base = fractions.Fraction(1, self.samplerate)
-        self.sequence += 1
+            # Timestamps
+            pts = self.sequence * 960
+            time_base = fractions.Fraction(1, self.samplerate)
+            self.sequence += 1
 
-        audio_frame = av.AudioFrame.from_ndarray(frame, format="s16", layout=layout)
-        audio_frame.sample_rate = self.samplerate
-        audio_frame.pts = pts
-        audio_frame.time_base = time_base
+            audio_frame = av.AudioFrame.from_ndarray(frame, format="s16", layout=layout)
+            audio_frame.sample_rate = self.samplerate
+            audio_frame.pts = pts
+            audio_frame.time_base = time_base
 
-        if time.time() - self.record_start_time >= self.record_duration and self.recorded_frames:
-            try:
-                audio_data = np.concatenate(self.recorded_frames)
-                wav_write("test_audio.wav", self.samplerate, audio_data)
-                print("[✓] Saved recorded audio to test_audio.wav")
-                self.recorded_frames = []
-            except Exception as e:
-                print(f"[x] Error saving audio: {e}")
+            # Save to .wav file if needed
+            if time.time() - self.record_start_time >= self.record_duration and self.recorded_frames:
+                try:
+                    audio_data = np.concatenate(self.recorded_frames)
+                    wav_write("test_audio.wav", self.samplerate, audio_data)
+                    print("[✓] Saved recorded audio to test_audio.wav")
+                    self.recorded_frames = []
+                except Exception as e:
+                    print(f"[x] Error saving audio: {e}")
 
-        # Throttle to real-time pace
-        await asyncio.sleep(self.blocksize / self.samplerate)
+            return audio_frame
 
-        return audio_frame
-
-    except Exception as e:
-        print("[x] Error in recv():", e)
-        return None
-
+        except Exception as e:
+            print("[x] Error in recv():", e)
+            return None
 
 
 # Global PC

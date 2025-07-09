@@ -11,10 +11,10 @@ from picamera2 import Picamera2
 import sounddevice as sd
 import signal
 import sys
-#####
-from scipy.io.wavfile import write as wav_write  # Add at top
-import time
-#####
+# #####
+# from scipy.io.wavfile import write as wav_write  # Add at top
+# import time
+# #####
 
 # Build the ICE servers list
 ice_servers = [
@@ -65,20 +65,20 @@ class MicrophoneAudioTrack(AudioStreamTrack):
         )
         self.stream.start()
         
-        # --- For recording ---
-        self.recorded_frames = []
-        self.record_start_time = time.time()
-        self.record_duration = 5  # seconds
-        # --- For recording ---/
+        # # --- For recording ---
+        # self.recorded_frames = []
+        # self.record_start_time = time.time()
+        # self.record_duration = 5  # seconds
+        # # --- For recording ---/
 
     async def recv(self):
         frame, _ = self.stream.read(960)
         frame = np.squeeze(frame)
-        # --- For recording ---
-        # Record audio for the first few seconds
-        if time.time() - self.record_start_time < self.record_duration:
-            self.recorded_frames.append(frame.copy())
-        # --- For recording ---/
+        # # --- For recording ---
+        # # Record audio for the first few seconds
+        # if time.time() - self.record_start_time < self.record_duration:
+        #     self.recorded_frames.append(frame.copy())
+        # # --- For recording ---/
         if len(frame.shape) == 1:
             frame = np.stack([frame, frame], axis=0).T
         pts, time_base = await self.next_timestamp()
@@ -86,18 +86,18 @@ class MicrophoneAudioTrack(AudioStreamTrack):
         audio_frame.sample_rate = self.samplerate
         audio_frame.pts = pts
         audio_frame.time_base = time_base
-        # --- For recording ---
-        # If done recording, save the audio to file once
-        if (time.time() - self.record_start_time >= self.record_duration 
-            and self.recorded_frames):
-            try:
-                audio_data = np.concatenate(self.recorded_frames)
-                wav_write("test_audio.wav", self.samplerate, audio_data)
-                print("[✓] Saved recorded audio to test_audio.wav")
-                self.recorded_frames = []  # Clear buffer to avoid saving again
-            except Exception as e:
-                print(f"[x] Error saving audio: {e}")
-        # --- For recording ---/
+        # # --- For recording ---
+        # # If done recording, save the audio to file once
+        # if (time.time() - self.record_start_time >= self.record_duration 
+        #     and self.recorded_frames):
+        #     try:
+        #         audio_data = np.concatenate(self.recorded_frames)
+        #         wav_write("test_audio.wav", self.samplerate, audio_data)
+        #         print("[✓] Saved recorded audio to test_audio.wav")
+        #         self.recorded_frames = []  # Clear buffer to avoid saving again
+        #     except Exception as e:
+        #         print(f"[x] Error saving audio: {e}")
+        # # --- For recording ---/
         return audio_frame
 
 # Global PC

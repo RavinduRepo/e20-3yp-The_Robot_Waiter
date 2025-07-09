@@ -63,7 +63,7 @@ class MicrophoneAudioTrack(MediaStreamTrack):
         self.channels = channels
         self.stream = sd.InputStream(
             device=self.device,
-            channels=2,  # 🔄 set to 2
+            channels=self.channels,
             samplerate=self.samplerate,
             dtype='int16',
             blocksize=960,
@@ -86,8 +86,12 @@ class MicrophoneAudioTrack(MediaStreamTrack):
             if time.time() - self.record_start_time < self.record_duration:
                 self.recorded_frames.append(frame.copy())
 
+            # Convert mono to stereo only if needed
             if len(frame.shape) == 1:
-                frame = np.stack([frame, frame], axis=0).T  # Make stereo
+                frame = np.stack([frame, frame], axis=0).T
+            elif frame.shape[1] != 2:
+                raise ValueError(f"Unsupported audio shape: {frame.shape}")
+
 
             # 🔧 Manually assign PTS and time_base
             pts = self.sequence * 960

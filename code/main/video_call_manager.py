@@ -61,12 +61,13 @@ class MicrophoneAudioTrack(MediaStreamTrack):
         self.device = device
         self.samplerate = samplerate
         self.channels = channels
+        self.blocksize = 4800  # 100 ms chunks
         self.stream = sd.InputStream(
             device=self.device,
             channels=self.channels,
             samplerate=self.samplerate,
             dtype='int16',
-            blocksize=960,
+            blocksize=self.blocksize,
         )
         self.stream.start()
         self.sequence = 0
@@ -78,7 +79,7 @@ class MicrophoneAudioTrack(MediaStreamTrack):
 
     async def recv(self):
         try:
-            frame, _ = self.stream.read(960)
+            frame, _ = self.stream.read(self.blocksize)
             frame = np.squeeze(frame)
             print("Audio frame requested by peer...")
             print(f"Captured frame shape: {frame.shape}")
@@ -104,7 +105,7 @@ class MicrophoneAudioTrack(MediaStreamTrack):
                 raise ValueError(f"Unsupported audio shape: {frame.shape}")
 
             # Timestamps
-            pts = self.sequence * 960
+            pts = self.sequence * self.blocksize
             time_base = fractions.Fraction(1, self.samplerate)
             self.sequence += 1
 
@@ -122,6 +123,9 @@ class MicrophoneAudioTrack(MediaStreamTrack):
                     self.recorded_frames = []
                 except Exception as e:
                     print(f"[x] Error saving audio: {e}")
+                    
+            # throttle to real time
+            await asyncio.sleep(self.blocksize / self.samplerate)
 
             return audio_frame
 

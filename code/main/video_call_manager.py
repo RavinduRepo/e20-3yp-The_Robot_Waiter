@@ -57,12 +57,12 @@ class PiCameraVideoTrack(VideoStreamTrack):
 class MicrophoneAudioTrack(MediaStreamTrack):
     kind = "audio"
 
-    def __init__(self, device=None, samplerate=48000, channels=1, blocksize=4800):
-        super().__init__()  # initialize base class
+    def __init__(self, device=None, samplerate=48000, channels=1):
+        super().__init__()  # Initialize base MediaStreamTrack
         self.device = device
         self.samplerate = samplerate
         self.channels = channels
-        self.blocksize = blocksize
+        self.blocksize = 960  # 960 samples = 20ms @ 48kHz
         self.sequence = 0
 
         self.stream = sd.InputStream(
@@ -71,29 +71,29 @@ class MicrophoneAudioTrack(MediaStreamTrack):
             samplerate=self.samplerate,
             dtype='int16',
             blocksize=self.blocksize,
+            latency='low',
         )
         self.stream.start()
 
-        # Optional: record audio
+        # Optional: record for 5 seconds
         self.recorded_frames = []
         self.record_start_time = time.time()
-        self.record_duration = 5  # seconds
+        self.record_duration = 5
 
     async def recv(self):
         try:
-            # Read a block of audio
+            # Read a block of audio samples (20ms)
             frame, _ = self.stream.read(self.blocksize)
             frame = np.squeeze(frame)
-            print("Audio frame requested by peer...")
-            print(f"Captured frame shape: {frame.shape}")
 
-            # Optional: record the first few seconds
+            # Optional: record
             if time.time() - self.record_start_time < self.record_duration:
                 self.recorded_frames.append(frame.copy())
 
-            # Fix shape/layout for av.AudioFrame
+            # Reshape for AV frame
             if len(frame.shape) == 1:
-                frame = np.expand_dims(frame, axis=0)  # (1, N)
+                # Mono shape (960,) → (1, 960)
+                frame = np.expand_dims(frame, axis=0)
                 layout = "mono"
             elif frame.shape[1] == 1:
                 frame = frame.T
@@ -104,33 +104,34 @@ class MicrophoneAudioTrack(MediaStreamTrack):
             else:
                 raise ValueError(f"Unsupported audio shape: {frame.shape}")
 
-            # Set timestamps
+            # Timestamping
             pts = self.sequence * self.blocksize
             time_base = fractions.Fraction(1, self.samplerate)
             self.sequence += 1
 
-            # Build audio frame
             audio_frame = av.AudioFrame.from_ndarray(frame, format="s16", layout=layout)
             audio_frame.sample_rate = self.samplerate
             audio_frame.pts = pts
             audio_frame.time_base = time_base
 
-            # Save .wav if done recording
+            # Save recording if done
             if time.time() - self.record_start_time >= self.record_duration and self.recorded_frames:
                 try:
                     audio_data = np.concatenate(self.recorded_frames)
                     wav_write("test_audio.wav", self.samplerate, audio_data)
-                    print("[✓] Saved recorded audio to test_audio.wav")
+                    print("[✓] Saved to test_audio.wav")
                     self.recorded_frames = []
                 except Exception as e:
                     print(f"[x] Error saving audio: {e}")
+
+            # Throttle to real-time speed
+            await asyncio.sleep(self.blocksize / self.samplerate)  # 960 / 48000 = 0.02s (20ms)
 
             return audio_frame
 
         except Exception as e:
             print("[x] Error in recv():", e)
             return None
-
 
 # Global PC
 pc = None

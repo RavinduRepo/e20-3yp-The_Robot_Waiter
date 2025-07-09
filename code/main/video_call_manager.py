@@ -125,7 +125,7 @@ class MicrophoneAudioTrack(MediaStreamTrack):
                     print(f"[x] Error saving audio: {e}")
                     
             # throttle to real time
-            await asyncio.sleep(self.blocksize / self.samplerate)
+            # await asyncio.sleep(self.blocksize / self.samplerate)
 
             return audio_frame
 

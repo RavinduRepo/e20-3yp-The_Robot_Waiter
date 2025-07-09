@@ -52,33 +52,50 @@ class PiCameraVideoTrack(VideoStreamTrack):
         video_frame.time_base = time_base
         return video_frame
 
-async def recv(self):
-    try:
+class MicrophoneAudioTrack(MediaStreamTrack):
+    kind = "audio"
+    def __init__(self, device=None, samplerate=48000, channels=1):
+        super().__init__()
+        self.device = device
+        self.samplerate = samplerate
+        self.channels = channels
+        self.stream = sd.InputStream(
+            device=self.device,
+            channels=self.channels,
+            samplerate=self.samplerate,
+            dtype='int16',
+            blocksize=960,
+        )
+        self.stream.start()
+        
+        # --- For recording ---
+        self.recorded_frames = []
+        self.record_start_time = time.time()
+        self.record_duration = 5  # seconds
+        # --- For recording ---/
+
+    async def recv(self):
         frame, _ = self.stream.read(960)
         frame = np.squeeze(frame)
         print("Audio frame requested by peer...")
-
+        # --- For recording ---
+        # Record audio for the first few seconds
         if time.time() - self.record_start_time < self.record_duration:
             self.recorded_frames.append(frame.copy())
-
+        # --- For recording ---/
         print("one")
         if len(frame.shape) == 1:
             frame = np.stack([frame, frame], axis=0).T
-
-        try:
-            pts, time_base = await self.next_timestamp()
-        except Exception as e:
-            print("[x] Timestamp error:", e)
-            pts, time_base = 0, fractions.Fraction(1, self.samplerate)
-
+        pts, time_base = await self.next_timestamp()
         print("two")
-
         audio_frame = av.AudioFrame.from_ndarray(frame, format="s16", layout="stereo")
         audio_frame.sample_rate = self.samplerate
         audio_frame.pts = pts
         audio_frame.time_base = time_base
         print("three")
 
+        # --- For recording ---
+        # If done recording, save the audio to file once
         if (time.time() - self.record_start_time >= self.record_duration 
             and self.recorded_frames):
             try:
@@ -86,15 +103,13 @@ async def recv(self):
                 audio_data = np.concatenate(self.recorded_frames)
                 wav_write("test_audio.wav", self.samplerate, audio_data)
                 print("[✓] Saved recorded audio to test_audio.wav")
-                self.recorded_frames = []
+                self.recorded_frames = []  # Clear buffer to avoid saving again
             except Exception as e:
                 print(f"[x] Error saving audio: {e}")
+        # --- For recording ---/
+        print("returnning")
 
-        print("returning")
         return audio_frame
-
-    except Exception as e:
-        print("[x] Error in recv():", e)
 
 # Global PC
 pc = None

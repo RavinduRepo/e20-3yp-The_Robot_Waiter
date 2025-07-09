@@ -162,6 +162,130 @@ Detailed designs for the hardware and software components will include:
 
 ---
 
+# 🤖 How to Physically Build the Robot – Step-by-Step Guide
+
+![image](https://github.com/user-attachments/assets/56dab1f8-1854-4d79-8a9d-c675134c3541)
+
+🧰📝 Parts You Need
+Before we begin, make sure you have all these components:
+
+### Mechanical/Structural Parts
+✅ 4 rubber wheels
+
+✅ 4 gear motors
+
+✅ Screws, nuts, and tools (screwdriver, drill if needed)
+
+✅ Wooden chassis box (main body)
+
+✅ 2 wooden plates (top and bottom platforms)
+
+✅ Aluminium frame (for structure and support)
+
+### Electronics
+✅ Raspberry Pi (central controller)
+
+✅ 12V Li-ion battery
+
+✅ 2 Motor Controllers (H-bridge or L298N-type)
+
+✅ Buck converter (to step down voltage to 5V)
+
+✅ Dot board (for wiring and mounting)
+
+✅ Display (screen – LCD, OLED or touchscreen)
+
+✅ Camera module (for vision)
+
+✅ 2 Ultrasonic sensors (for obstacle detection)
+
+🛠 Step-by-Step Assembly Procedure
+## 🪛 Step 1: Prepare the Wooden Chassis
+Take the wooden chassis box.
+
+Ensure it's strong and balanced to hold all the components.
+
+Drill holes for screws to mount motors and wheels.
+
+## 🚗 Step 2: Mount the Motors and Wheels
+Attach the 4 gear motors to the chassis using screws.
+
+Connect one wheel to each motor.
+
+Make sure the wheels are aligned straight and can rotate freely.
+
+## 🏗 Step 3: Build the Frame
+Attach the aluminium frame vertically on the chassis.
+
+Fix the two wooden plates:
+
+One near the bottom to hold the battery and electronics.
+
+One on top to hold the display and camera.
+
+## 🔋 Step 4: Add Power Supply
+Place the 12V Li-ion battery securely inside the chassis.
+
+Connect the buck converter to the battery to step down voltage to 5V for Raspberry Pi and sensors.
+
+Ensure proper insulation to prevent short circuits.
+
+## 🧠 Step 5: Mount the Raspberry Pi and Dot Board
+Fix the Raspberry Pi securely on the lower platform.
+
+Attach the dot board next to it (used for custom wiring).
+
+Fix the 2 motor controllers on the dot board or chassis wall.
+
+## ⚡ Step 6: Wire the Motors
+Connect each pair of motors (left side and right side) to one motor controller.
+
+Wire the motor controllers to the GPIO pins of Raspberry Pi through the dot board.
+
+Connect the motor controllers’ power lines to the 12V battery.
+
+##  🎥 Step 7: Install the Camera and Display
+Mount the camera module on the top plate, facing forward.
+
+Secure the display screen next to or above the camera.
+
+Wire both to the Raspberry Pi using their respective connectors (camera via CSI, display via HDMI/GPIO).
+
+## 📡 Step 8: Add Ultrasonic Sensors
+Attach 2 ultrasonic sensors to the front corners of the robot.
+
+Face them outward for obstacle detection.
+
+Wire them to the Raspberry Pi’s GPIO pins.
+
+## 🔌 Step 9: Power and Safety Check
+Double-check all wiring – make sure no wires are loose or shorted.
+
+Secure all components using tape, brackets, or screws.
+
+Connect the battery and check if the buck converter gives correct output (5V).
+
+## ✅ Step 10: Test the Robot
+Turn on the system.
+
+Make sure:
+
+Raspberry Pi powers up.
+
+Motors respond to test signals.
+
+Camera and display work.
+
+Ultrasonic sensors give distance readings.
+
+## 🧪 Optional Step: Tidy the Wiring
+Use zip ties or cable sleeves to clean up messy wires.
+
+Label the connections if needed for easy debugging.
+
+![image](https://github.com/user-attachments/assets/550c40c0-51c1-4966-874a-7f882166764b)
+
+
 # Testing
 
 Comprehensive testing of both hardware and software components:

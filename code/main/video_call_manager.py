@@ -36,6 +36,7 @@ ice_servers = [
 config = RTCConfiguration(iceServers=ice_servers)
 
 class PiCameraVideoTrack(VideoStreamTrack):
+    kind = "video"
     def __init__(self):
         super().__init__()
         self.picam2 = Picamera2()
@@ -52,6 +53,7 @@ class PiCameraVideoTrack(VideoStreamTrack):
         return video_frame
 
 class MicrophoneAudioTrack(MediaStreamTrack):
+    kind = "audio"
     def __init__(self, device=None, samplerate=48000, channels=1):
         super().__init__()
         self.device = device

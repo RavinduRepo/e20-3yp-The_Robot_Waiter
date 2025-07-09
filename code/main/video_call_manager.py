@@ -124,7 +124,7 @@ async def main(call_id):
     pc = RTCPeerConnection(configuration=config)
 
     video_track = PiCameraVideoTrack()
-    pc.addTrack(video_track)
+    # pc.addTrack(video_track) #for testing
 
     audio_track = MicrophoneAudioTrack(device=2)
     pc.addTrack(audio_track)

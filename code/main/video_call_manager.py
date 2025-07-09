@@ -13,10 +13,10 @@ import sounddevice as sd
 import signal
 import sys
 import fractions
-#####
-from scipy.io.wavfile import write as wav_write  # Add at top
-import time
-#####
+# #####
+# from scipy.io.wavfile import write as wav_write  # Add at top
+# import time
+# #####
 
 # Build the ICE servers list
 ice_servers = [
@@ -75,10 +75,10 @@ class MicrophoneAudioTrack(MediaStreamTrack):
         )
         self.stream.start()
 
-        # Optional: record for 5 seconds
-        self.recorded_frames = []
-        self.record_start_time = time.time()
-        self.record_duration = 5
+        # # Optional: record for 5 seconds
+        # self.recorded_frames = []
+        # self.record_start_time = time.time()
+        # self.record_duration = 5
 
     async def recv(self):
         try:
@@ -86,9 +86,9 @@ class MicrophoneAudioTrack(MediaStreamTrack):
             frame, _ = self.stream.read(self.blocksize)
             frame = np.squeeze(frame)
 
-            # Optional: record
-            if time.time() - self.record_start_time < self.record_duration:
-                self.recorded_frames.append(frame.copy())
+            # # Optional: record
+            # if time.time() - self.record_start_time < self.record_duration:
+            #     self.recorded_frames.append(frame.copy())
 
             # Reshape for AV frame
             if len(frame.shape) == 1:
@@ -114,15 +114,15 @@ class MicrophoneAudioTrack(MediaStreamTrack):
             audio_frame.pts = pts
             audio_frame.time_base = time_base
 
-            # Save recording if done
-            if time.time() - self.record_start_time >= self.record_duration and self.recorded_frames:
-                try:
-                    audio_data = np.concatenate(self.recorded_frames)
-                    wav_write("test_audio.wav", self.samplerate, audio_data)
-                    print("[✓] Saved to test_audio.wav")
-                    self.recorded_frames = []
-                except Exception as e:
-                    print(f"[x] Error saving audio: {e}")
+            # # Save recording if done
+            # if time.time() - self.record_start_time >= self.record_duration and self.recorded_frames:
+            #     try:
+            #         audio_data = np.concatenate(self.recorded_frames)
+            #         wav_write("test_audio.wav", self.samplerate, audio_data)
+            #         print("[✓] Saved to test_audio.wav")
+            #         self.recorded_frames = []
+            #     except Exception as e:
+            #         print(f"[x] Error saving audio: {e}")
 
             return audio_frame
 

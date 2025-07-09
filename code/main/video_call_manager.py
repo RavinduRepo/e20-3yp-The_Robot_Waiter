@@ -156,6 +156,12 @@ async def main(call_id):
 
     answer = await pc.createAnswer()
     await pc.setLocalDescription(answer)
+
+    ########################
+    print("[Debug] Local SDP:")
+    print(pc.localDescription.sdp)
+    ########################
+
     call_ref.update({"answer": {
         "type": pc.localDescription.type,
         "sdp": pc.localDescription.sdp

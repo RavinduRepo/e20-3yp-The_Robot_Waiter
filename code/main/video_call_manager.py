@@ -4,7 +4,8 @@ import json
 import firebase_admin
 from firebase_admin import credentials, firestore
 from aiortc import RTCPeerConnection, RTCConfiguration, RTCIceServer, RTCSessionDescription, RTCIceCandidate
-from aiortc import VideoStreamTrack, AudioStreamTrack
+# from aiortc import VideoStreamTrack, AudioStreamTrack
+from aiortc import VideoStreamTrack, MediaStreamTrack
 import av
 import numpy as np
 from picamera2 import Picamera2
@@ -50,7 +51,7 @@ class PiCameraVideoTrack(VideoStreamTrack):
         video_frame.time_base = time_base
         return video_frame
 
-class MicrophoneAudioTrack(AudioStreamTrack):
+class MicrophoneAudioTrack(MediaStreamTrack):
     def __init__(self, device=None, samplerate=48000, channels=1):
         super().__init__()
         self.device = device

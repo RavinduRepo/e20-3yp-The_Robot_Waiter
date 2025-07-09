@@ -83,18 +83,23 @@ class MicrophoneAudioTrack(MediaStreamTrack):
         if time.time() - self.record_start_time < self.record_duration:
             self.recorded_frames.append(frame.copy())
         # --- For recording ---/
+        print("one")
         if len(frame.shape) == 1:
             frame = np.stack([frame, frame], axis=0).T
         pts, time_base = await self.next_timestamp()
+        print("two")
         audio_frame = av.AudioFrame.from_ndarray(frame, format="s16", layout="stereo")
         audio_frame.sample_rate = self.samplerate
         audio_frame.pts = pts
         audio_frame.time_base = time_base
+        print("three")
+
         # --- For recording ---
         # If done recording, save the audio to file once
         if (time.time() - self.record_start_time >= self.record_duration 
             and self.recorded_frames):
             try:
+                print("five")
                 audio_data = np.concatenate(self.recorded_frames)
                 wav_write("test_audio.wav", self.samplerate, audio_data)
                 print("[✓] Saved recorded audio to test_audio.wav")
@@ -102,6 +107,8 @@ class MicrophoneAudioTrack(MediaStreamTrack):
             except Exception as e:
                 print(f"[x] Error saving audio: {e}")
         # --- For recording ---/
+        print("returnning")
+
         return audio_frame
 
 # Global PC

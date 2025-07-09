@@ -124,9 +124,6 @@ class MicrophoneAudioTrack(MediaStreamTrack):
                 except Exception as e:
                     print(f"[x] Error saving audio: {e}")
 
-            # Throttle to real-time speed
-            await asyncio.sleep(self.blocksize / self.samplerate)  # 960 / 48000 = 0.02s (20ms)
-
             return audio_frame
 
         except Exception as e:

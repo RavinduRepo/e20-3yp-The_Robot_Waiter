@@ -77,6 +77,7 @@ class MicrophoneAudioTrack(MediaStreamTrack):
     async def recv(self):
         frame, _ = self.stream.read(960)
         frame = np.squeeze(frame)
+        print("Audio frame requested by peer...")
         # --- For recording ---
         # Record audio for the first few seconds
         if time.time() - self.record_start_time < self.record_duration:
@@ -146,6 +147,12 @@ async def main(call_id):
         return
 
     await pc.setRemoteDescription(RTCSessionDescription(sdp=offer["sdp"], type=offer["type"]))
+
+    ## audio test
+    print("Remote SDP:", offer["sdp"])
+    print(pc.remoteDescription.sdp)
+    print(pc.localDescription.sdp)
+    #erteeeeeeee
 
     answer = await pc.createAnswer()
     await pc.setLocalDescription(answer)

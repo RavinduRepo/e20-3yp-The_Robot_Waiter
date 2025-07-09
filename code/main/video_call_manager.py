@@ -77,7 +77,7 @@ class MicrophoneAudioTrack(MediaStreamTrack):
 
     async def recv(self):
         try:
-            frame, _ = self.stream.read(960)  # shape (960, channels)
+            frame, _ = self.stream.read(960)  # shape: (960,) or (960, channels)
             frame = np.squeeze(frame)
             print("Audio frame requested by peer...")
             print(f"Captured frame shape: {frame.shape}")
@@ -85,14 +85,13 @@ class MicrophoneAudioTrack(MediaStreamTrack):
             if time.time() - self.record_start_time < self.record_duration:
                 self.recorded_frames.append(frame.copy())
 
-            # Determine layout and frame shape for av.AudioFrame
+            # Determine layout and frame shape
             if len(frame.shape) == 1:
-                # Mono input: shape (samples,)
                 layout = "mono"
-                # av.AudioFrame expects 2D array (samples, channels)
-                frame = frame[:, None]  # make shape (samples,1)
+                # keep shape as (960,)
             elif len(frame.shape) == 2 and frame.shape[1] == 2:
                 layout = "stereo"
+                # shape is already (960, 2)
             else:
                 raise ValueError(f"Unsupported audio shape: {frame.shape}")
 
@@ -120,7 +119,6 @@ class MicrophoneAudioTrack(MediaStreamTrack):
         except Exception as e:
             print("[x] Error in recv():", e)
             return None
-
 
 
 # Global PC

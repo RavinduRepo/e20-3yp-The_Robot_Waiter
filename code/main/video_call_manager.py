@@ -81,6 +81,7 @@ class MicrophoneAudioTrack(MediaStreamTrack):
             frame, _ = self.stream.read(960)
             frame = np.squeeze(frame)
             print("Audio frame requested by peer...")
+            print(f"Captured frame shape: {frame.shape}")
 
             # Optional recording
             if time.time() - self.record_start_time < self.record_duration:
@@ -88,12 +89,11 @@ class MicrophoneAudioTrack(MediaStreamTrack):
 
             # Convert mono to stereo only if needed
             if len(frame.shape) == 1:
-                frame = np.stack([frame, frame], axis=0).T
+                frame = np.stack([frame, frame], axis=1)  # mono to stereo
             elif frame.shape[1] != 2:
                 raise ValueError(f"Unsupported audio shape: {frame.shape}")
 
-
-            # 🔧 Manually assign PTS and time_base
+            # Manually assign PTS and time_base
             pts = self.sequence * 960
             time_base = fractions.Fraction(1, self.samplerate)
             self.sequence += 1
@@ -103,7 +103,9 @@ class MicrophoneAudioTrack(MediaStreamTrack):
             audio_frame.pts = pts
             audio_frame.time_base = time_base
 
-            if (time.time() - self.record_start_time >= self.record_duration and self.recorded_frames):
+            # Save recorded audio after duration (once)
+            if (time.time() - self.record_start_time >= self.record_duration
+                    and self.recorded_frames):
                 try:
                     audio_data = np.concatenate(self.recorded_frames)
                     wav_write("test_audio.wav", self.samplerate, audio_data)
@@ -116,6 +118,8 @@ class MicrophoneAudioTrack(MediaStreamTrack):
 
         except Exception as e:
             print("[x] Error in recv():", e)
+            return None
+
 
 # Global PC
 pc = None

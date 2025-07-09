@@ -63,7 +63,7 @@ class MicrophoneAudioTrack(MediaStreamTrack):
         self.channels = channels
         self.stream = sd.InputStream(
             device=self.device,
-            channels=self.channels,
+            channels=2,  # 🔄 set to 2
             samplerate=self.samplerate,
             dtype='int16',
             blocksize=960,

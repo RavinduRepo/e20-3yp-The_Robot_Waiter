@@ -150,8 +150,8 @@ async def main(call_id):
 
     ## audio test
     print("Remote SDP:", offer["sdp"])
-    print(pc.remoteDescription.sdp)
-    print(pc.localDescription.sdp)
+    # print(pc.remoteDescription.sdp)
+    # print(pc.localDescription.sdp)
     #erteeeeeeee
 
     answer = await pc.createAnswer()

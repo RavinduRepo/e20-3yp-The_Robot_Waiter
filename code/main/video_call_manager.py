@@ -83,22 +83,27 @@ class MicrophoneAudioTrack(MediaStreamTrack):
             print("Audio frame requested by peer...")
             print(f"Captured frame shape: {frame.shape}")
 
-            # Record audio (optional)
+            # Optional: Record audio
             if time.time() - self.record_start_time < self.record_duration:
                 self.recorded_frames.append(frame.copy())
 
-            # Determine layout and fix shape
+            # Fix shape and layout
             if len(frame.shape) == 1:
+                # Mono shape (960,) → (1, 960)
+                frame = np.expand_dims(frame, axis=0)
                 layout = "mono"
             elif frame.shape[1] == 1:
-                frame = frame[:, 0]  # reshape to (960,)
+                # Mono shape (960, 1) → (1, 960)
+                frame = frame.T
                 layout = "mono"
             elif frame.shape[1] == 2:
+                # Stereo shape (960, 2) → (2, 960)
+                frame = frame.T
                 layout = "stereo"
             else:
-                raise ValueError(f"Unsupported frame shape: {frame.shape}")
+                raise ValueError(f"Unsupported audio shape: {frame.shape}")
 
-            # Timestamping
+            # Timestamps
             pts = self.sequence * 960
             time_base = fractions.Fraction(1, self.samplerate)
             self.sequence += 1
@@ -108,7 +113,7 @@ class MicrophoneAudioTrack(MediaStreamTrack):
             audio_frame.pts = pts
             audio_frame.time_base = time_base
 
-            # Save to .wav (optional)
+            # Save to .wav file if needed
             if time.time() - self.record_start_time >= self.record_duration and self.recorded_frames:
                 try:
                     audio_data = np.concatenate(self.recorded_frames)

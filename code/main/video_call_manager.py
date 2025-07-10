@@ -52,12 +52,12 @@ class PiCameraVideoTrack(VideoStreamTrack):
 class MicrophoneAudioTrack(MediaStreamTrack):
     kind = "audio"
 
-    def __init__(self, device=None, samplerate=48000, channels=1):
+    def __init__(self, device=None, samplerate=30000, channels=1):
         super().__init__()  # Initialize base MediaStreamTrack
         self.device = device
         self.samplerate = samplerate
         self.channels = channels
-        self.blocksize = 2000  # Slightly increased blocksize (approx 21.33ms @ 48kHz)
+        self.blocksize = 960  # Slightly increased blocksize (approx 21.33ms @ 48kHz)
         self.sequence = 0
         
         # Increased maxsize further to absorb more significant delays.

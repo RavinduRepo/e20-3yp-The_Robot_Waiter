@@ -157,7 +157,6 @@ def get_usb_microphone(name_contains="USB"):
             return idx
     raise RuntimeError(f"No USB microphone found matching '{name_contains}'")
 
-
 # Global PC
 pc = None
 

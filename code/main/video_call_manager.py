@@ -188,9 +188,11 @@ async def play_audio_track(track):
             samplerate=sample_rate,
             channels=detected_channels,
             dtype='int16',
-            blocksize=0,                # Let PortAudio decide
-            latency='high'             # Reduce underrun risk
+            blocksize=1920,  # 1920 samples = 40ms @ 48kHz
+            latency='high',
+            buffersize=4      # buffer queue depth
         )
+
         stream.start()
         print("stream started")
 
@@ -212,6 +214,7 @@ async def play_audio_track(track):
 
             print(f"[Debug] Prepared PCM shape for stream: {pcm.shape}")
             stream.write(pcm)
+            await asyncio.sleep(0)  # Yield control to event loop
 
     except Exception as e:
         print(f"[x] Error during audio playback: {e}")

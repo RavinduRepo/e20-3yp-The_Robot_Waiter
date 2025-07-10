@@ -157,11 +157,14 @@ def get_usb_microphone(name_contains="USB"):
             return idx
     raise RuntimeError(f"No USB microphone found matching '{name_contains}'")
 
+from scipy.io.wavfile import write as wav_write
+from collections import deque
+
 async def play_audio_track(track):
     print("[✓] Starting audio playback from browser")
 
     try:
-        # Wait for first frame to get properties
+        # Wait for first frame to get audio properties
         first_frame = await track.recv()
         sample_rate = first_frame.sample_rate or 48000
         channels = len(first_frame.layout.channels)
@@ -171,21 +174,40 @@ async def play_audio_track(track):
             samplerate=sample_rate,
             channels=channels,
             dtype='int16',
-            device=11  # Change if needed
+            device=0  # change if needed
         )
         stream.start()
 
-        pcm = first_frame.to_ndarray()
-        if pcm.dtype != np.int16:
-            pcm = pcm.astype(np.int16)
-        stream.write(pcm.T if pcm.ndim > 1 else pcm)
+        # Recording setup
+        max_record_seconds = 5
+        recorded_frames = deque()
+        total_samples = 0
 
         while True:
-            frame = await track.recv()
+            frame = first_frame if total_samples == 0 else await track.recv()
             pcm = frame.to_ndarray()
             if pcm.dtype != np.int16:
                 pcm = pcm.astype(np.int16)
+
+            # Save the frame
+            recorded_frames.append(pcm.copy())
+            total_samples += pcm.shape[-1]
+
+            # Play audio
             stream.write(pcm.T if pcm.ndim > 1 else pcm)
+
+            # Save to .wav after enough data
+            if total_samples >= max_record_seconds * sample_rate:
+                all_data = np.concatenate(recorded_frames, axis=-1)
+
+                if all_data.ndim == 1:
+                    all_data = np.expand_dims(all_data, axis=0)
+
+                all_data = all_data.T  # shape: (samples, channels)
+
+                print("[✓] Saving audio with scipy to 'web_audio_recorded.wav'")
+                wav_write("web_audio_recorded.wav", sample_rate, all_data)
+                recorded_frames.clear()
 
     except Exception as e:
         print(f"[x] Error during audio playback: {e}")

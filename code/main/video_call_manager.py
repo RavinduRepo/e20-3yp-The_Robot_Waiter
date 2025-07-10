@@ -52,7 +52,7 @@ class PiCameraVideoTrack(VideoStreamTrack):
 class MicrophoneAudioTrack(MediaStreamTrack):
     kind = "audio"
 
-    def __init__(self, device=None, samplerate=32000, channels=1): # Reverted samplerate to 48000
+    def __init__(self, device=None, samplerate=48000, channels=1): # Reverted samplerate to 48000
         super().__init__()  # Initialize base MediaStreamTrack
         self.device = device
         self.samplerate = samplerate

@@ -169,7 +169,7 @@ async def play_audio_track(track):
         sample_rate = first_frame.sample_rate
         if sample_rate is None or sample_rate < 1000:
             print("[!] Invalid or missing sample rate, defaulting to 48000")
-            sample_rate = 48000
+            sample_rate = 32000
         else:
             print(f"[✓] Detected sample rate: {sample_rate}")
 

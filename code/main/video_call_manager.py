@@ -160,22 +160,33 @@ def get_usb_microphone(name_contains="USB"):
 async def play_audio_track(track):
     print("[✓] Starting audio playback from browser")
 
-    stream = sd.OutputStream(
-        device=0,  # <-- force output to 3.5mm
-        samplerate=48000,
-        channels=1,
-        dtype='int16'
-    )    
-    stream.start()
-
     try:
+        # Wait for first frame to get properties
+        first_frame = await track.recv()
+        sample_rate = first_frame.sample_rate or 48000
+        channels = len(first_frame.layout.channels)
+        print(f"[✓] Incoming audio: {channels} channel(s), {sample_rate} Hz")
+
+        stream = sd.OutputStream(
+            samplerate=sample_rate,
+            channels=channels,
+            dtype='int16',
+            device=0  # Change if needed
+        )
+        stream.start()
+
+        pcm = first_frame.to_ndarray()
+        if pcm.dtype != np.int16:
+            pcm = pcm.astype(np.int16)
+        stream.write(pcm.T if pcm.ndim > 1 else pcm)
+
         while True:
             frame = await track.recv()
             pcm = frame.to_ndarray()
-            if pcm.ndim == 1:
-                stream.write(pcm)
-            else:
-                stream.write(pcm.T)
+            if pcm.dtype != np.int16:
+                pcm = pcm.astype(np.int16)
+            stream.write(pcm.T if pcm.ndim > 1 else pcm)
+
     except Exception as e:
         print(f"[x] Error during audio playback: {e}")
     finally:

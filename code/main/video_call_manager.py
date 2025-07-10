@@ -167,21 +167,15 @@ async def play_audio_track(track):
         print("waiting for first frame")
         first_frame = await track.recv()
 
-        sample_rate = first_frame.sample_rate
-        if sample_rate is None or sample_rate < 1000:
-            print("[!] Invalid or missing sample rate, defaulting to 48000")
-            sample_rate = 48000
-        else:
-            print(f"[✓] Detected sample rate: {sample_rate}")
+        sample_rate = first_frame.sample_rate or 48000
+        print(f"[✓] Detected sample rate: {sample_rate}")
 
-        channels = len(first_frame.layout.channels)
-        print(f"[✓] Incoming audio layout: {channels} channel(s), {sample_rate} Hz")
+        layout_channels = len(first_frame.layout.channels)
+        print(f"[✓] Incoming audio layout: {layout_channels} channel(s), {sample_rate} Hz")
 
-        # Convert first frame PCM to determine real shape
         pcm = first_frame.to_ndarray()
         print(f"→ First frame PCM shape: {pcm.shape}, dtype: {pcm.dtype}")
 
-        # Detect actual channels from PCM shape
         if pcm.ndim == 1:
             detected_channels = 1
         else:
@@ -189,31 +183,34 @@ async def play_audio_track(track):
 
         print(f"[→] Detected channels from PCM shape: {detected_channels}")
 
+        # Set a high enough latency buffer to prevent underruns
         stream = sd.OutputStream(
             samplerate=sample_rate,
             channels=detected_channels,
-            dtype='int16'
+            dtype='int16',
+            blocksize=0,                # Let PortAudio decide
+            latency='high'             # Reduce underrun risk
         )
         stream.start()
         print("stream started")
 
         while True:
-            pcm = pcm if 'pcm' in locals() and 'first_frame_used' not in locals() else (await track.recv()).to_ndarray()
-            first_frame_used = True  # skip reuse after first time
+            # Get next audio frame
+            frame = await track.recv()
+            pcm = frame.to_ndarray()
 
             if pcm.dtype != np.int16:
                 pcm = pcm.astype(np.int16)
 
             print(f"→ Raw pcm shape: {pcm.shape}, dtype: {pcm.dtype}")
 
+            # Adjust PCM shape
             if pcm.ndim == 1:
                 pcm = pcm[:, np.newaxis]
-
             elif pcm.shape[0] < pcm.shape[1]:
                 pcm = pcm.T
 
             print(f"[Debug] Prepared PCM shape for stream: {pcm.shape}")
-
             stream.write(pcm)
 
     except Exception as e:

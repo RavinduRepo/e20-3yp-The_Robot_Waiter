@@ -164,6 +164,7 @@ async def play_audio_track(track):
     print("[✓] Starting audio playback from browser")
 
     try:
+        print("waiting for first frame")
         # Wait for first frame to get audio properties
         first_frame = await track.recv()
         sample_rate = first_frame.sample_rate or 48000
@@ -177,12 +178,13 @@ async def play_audio_track(track):
             device=0  # change if needed
         )
         stream.start()
+        print("stream started")
 
         # Recording setup
         max_record_seconds = 5
         recorded_frames = deque()
         total_samples = 0
-
+        print("while on")
         while True:
             frame = first_frame if total_samples == 0 else await track.recv()
             pcm = frame.to_ndarray()

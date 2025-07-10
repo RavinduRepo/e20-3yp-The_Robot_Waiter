@@ -59,8 +59,32 @@ class MicrophoneAudioTrack(MediaStreamTrack):
         self.channels = channels
         self.blocksize = 960  # 960 samples = 20ms @ 48kHz
         self.sequence = 0
+        self.audio_queue = asyncio.Queue() # Queue to hold audio frames
 
-        # Initialize the sounddevice input stream
+        # Define the callback function for the sounddevice stream
+        def audio_callback(indata, frames, time, status):
+            """
+            This function is called by sounddevice in a separate thread
+            whenever new audio data is available.
+            """
+            if status:
+                print(f"Sounddevice callback status: {status}")
+            
+            # Put the audio data into the asyncio queue.
+            # We use try-except to handle cases where the queue might be full
+            # or if the event loop is shutting down.
+            try:
+                # Make a copy of indata as sounddevice reuses the buffer
+                self.audio_queue.put_nowait(np.copy(indata))
+            except asyncio.QueueFull:
+                # This indicates that the consumer (recv method) is not
+                # processing data fast enough. We could log this or
+                # implement a dropping strategy. For now, just print.
+                print("Audio queue is full, dropping audio block.")
+            except Exception as e:
+                print(f"Error in audio_callback: {e}")
+
+        # Initialize the sounddevice input stream with the callback
         self.stream = sd.InputStream(
             device=self.device,
             channels=self.channels,
@@ -68,26 +92,14 @@ class MicrophoneAudioTrack(MediaStreamTrack):
             dtype='int16',
             blocksize=self.blocksize,
             latency='low',
+            callback=audio_callback # Pass the callback function here
         )
         self.stream.start() # Start the audio stream
 
     async def recv(self):
         try:
-            # Get the current running event loop. This is safe to do inside recv
-            # as recv is called within the asyncio event loop.
-            loop = asyncio.get_running_loop()
-
-            # Read a block of audio samples (20ms) using run_in_executor.
-            # This offloads the blocking sounddevice.read() call to a separate
-            # thread, preventing it from blocking the main asyncio event loop.
-            # This allows the event loop to remain responsive and process
-            # WebRTC signaling and packet sending efficiently, preventing
-            # audio buffering and bursting.
-            frame, _ = await loop.run_in_executor(
-                None,  # Use the default ThreadPoolExecutor
-                self.stream.read,
-                self.blocksize
-            )
+            # Wait asynchronously for the next audio block from the queue
+            frame = await self.audio_queue.get()
             frame = np.squeeze(frame) # Remove single-dimensional entries from the shape of an array
 
             # Reshape for AV frame based on channel configuration

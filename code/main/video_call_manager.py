@@ -160,7 +160,12 @@ def get_usb_microphone(name_contains="USB"):
 async def play_audio_track(track):
     print("[✓] Starting audio playback from browser")
 
-    stream = sd.OutputStream(samplerate=48000, channels=1, dtype='int16')
+    stream = sd.OutputStream(
+        device=0,  # <-- force output to 3.5mm
+        samplerate=48000,
+        channels=1,
+        dtype='int16'
+    )    
     stream.start()
 
     try:

@@ -164,16 +164,16 @@ class AudioPlaybackHandler:
         self.stream = None
         self.running = False
         
-    def start_playback_thread(self, sample_rate, channels):
+    def start_playback_thread(self, sample_rate, channels, dtype=np.float32):
         """Start the audio playback thread"""
         def playback_worker():
             """Worker function that runs in a separate thread"""
             try:
-                # Create output stream in the worker thread with larger buffer
+                # Create output stream in the worker thread with original dtype
                 stream = sd.OutputStream(
                     samplerate=sample_rate,
                     channels=channels,
-                    dtype='int16',
+                    dtype=dtype,  # Use original dtype from audio frames
                     blocksize=2048,  # Larger blocksize for more stable playback
                     latency='high',  # Use high latency mode for more stable playback
                 )
@@ -181,7 +181,7 @@ class AudioPlaybackHandler:
                 self.stream = stream
                 self.running = True
                 
-                print(f"[✓] Audio playback thread started: {sample_rate}Hz, {channels} channels")
+                print(f"[✓] Audio playback thread started: {sample_rate}Hz, {channels} channels, {dtype}")
                 
                 # Build up initial buffer to prevent underruns
                 buffer = []
@@ -215,7 +215,7 @@ class AudioPlaybackHandler:
                     except Exception as e:
                         if self.running:  # Only log if we're still supposed to be running
                             # Generate silence to prevent underruns
-                            silence = np.zeros((2048, channels), dtype=np.int16)
+                            silence = np.zeros((2048, channels), dtype=dtype)
                             if not buffering:
                                 stream.write(silence)
                         continue
@@ -265,12 +265,11 @@ async def play_audio_track(track):
         # Process first frame to get actual format
         pcm = first_frame.to_ndarray()
         print(f"[DEBUG] Raw PCM shape: {pcm.shape}, dtype: {pcm.dtype}")
+        print(f"[DEBUG] Sample rate from frame: {first_frame.sample_rate}")
         
-        if pcm.dtype != np.int16:
-            if pcm.dtype == np.float32 or pcm.dtype == np.float64:
-                pcm = (pcm * 32767).astype(np.int16)
-            else:
-                pcm = pcm.astype(np.int16)
+        # Don't convert dtype - keep original format for sounddevice
+        original_dtype = pcm.dtype
+        print(f"[DEBUG] Using original dtype: {original_dtype}")
             
         # Determine actual channels from PCM data
         if pcm.ndim == 1:
@@ -295,8 +294,8 @@ async def play_audio_track(track):
         main_loop = asyncio.get_running_loop()
         audio_handler = AudioPlaybackHandler(main_loop)
         
-        # Start playback thread
-        audio_handler.start_playback_thread(sample_rate, detected_channels)
+        # Start playback thread with original dtype
+        audio_handler.start_playback_thread(sample_rate, detected_channels, original_dtype)
         
         # Wait a bit to let the playback thread initialize
         await asyncio.sleep(0.1)
@@ -311,12 +310,7 @@ async def play_audio_track(track):
                 frame = await asyncio.wait_for(track.recv(), timeout=0.1)
                 
                 pcm = frame.to_ndarray()
-                
-                if pcm.dtype != np.int16:
-                    if pcm.dtype == np.float32 or pcm.dtype == np.float64:
-                        pcm = (pcm * 32767).astype(np.int16)
-                    else:
-                        pcm = pcm.astype(np.int16)
+                # Keep original dtype - don't convert
                 
                 # Handle channel format consistently
                 if pcm.ndim == 2:

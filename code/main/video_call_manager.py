@@ -57,12 +57,12 @@ class MicrophoneAudioTrack(MediaStreamTrack):
         self.device = device
         self.samplerate = samplerate
         self.channels = channels
-        self.blocksize = 960  # 960 samples = 20ms @ 48kHz
+        self.blocksize = 1024  # Slightly increased blocksize (approx 21.33ms @ 48kHz)
         self.sequence = 0
         
-        # Increased maxsize significantly to absorb very large delays.
-        # 1500 blocks * 20ms/block = 30 seconds of buffer.
-        self.audio_queue = asyncio.Queue(maxsize=1500) 
+        # Increased maxsize further to absorb more significant delays.
+        # 2000 blocks * (1024/48000)s/block = ~42.6 seconds of buffer.
+        self.audio_queue = asyncio.Queue(maxsize=2000) 
 
         # Define the callback function for the sounddevice stream
         def audio_callback(indata, frames, time, status):
@@ -72,14 +72,22 @@ class MicrophoneAudioTrack(MediaStreamTrack):
             """
             if status:
                 # Log status messages, especially 'input overflow'
-                print(f"Sounddevice callback status: {status}")
-            
+                # Check for specific status flags for more detailed logging
+                if sd.CallbackFlags.INPUT_OVERFLOW in status:
+                    print("Sounddevice callback status: INPUT OVERFLOW - Data was lost.")
+                if sd.CallbackFlags.OUTPUT_UNDERFLOW in status:
+                    print("Sounddevice callback status: OUTPUT UNDERFLOW - Output buffer ran dry.")
+                if sd.CallbackFlags.PRIMING_OUTPUT in status:
+                    print("Sounddevice callback status: PRIMING OUTPUT - Initializing output buffer.")
+                # Log any other status flags
+                if status not in [sd.CallbackFlags.INPUT_OVERFLOW, sd.CallbackFlags.OUTPUT_UNDERFLOW, sd.CallbackFlags.PRIMING_OUTPUT]:
+                    print(f"Sounddevice callback status: {status}")
+
             # Put the audio data into the asyncio queue.
-            # We use try-except to handle cases where the queue might be full
-            # or if the event loop is shutting down.
             try:
                 # Make a copy of indata as sounddevice reuses the buffer
-                self.audio_queue.put_nowait(np.copy(indata))
+                # Ensure the data type is consistent with what av expects (int16 for s16)
+                self.audio_queue.put_nowait(np.copy(indata).astype(np.int16))
                 # print(f"Audio queue size: {self.audio_queue.qsize()}") # For debugging
             except asyncio.QueueFull:
                 # This indicates that the consumer (recv method) is not
@@ -93,9 +101,9 @@ class MicrophoneAudioTrack(MediaStreamTrack):
             device=self.device,
             channels=self.channels,
             samplerate=self.samplerate,
-            dtype='int16',
+            dtype='int16', # Explicitly ensure dtype is int16
             blocksize=self.blocksize,
-            latency='low', # Keep latency low for real-time communication
+            latency='low', # Keep latency low, but the larger blocksize might help
             callback=audio_callback # Pass the callback function here
         )
         self.stream.start() # Start the audio stream
@@ -104,34 +112,29 @@ class MicrophoneAudioTrack(MediaStreamTrack):
         try:
             # Wait asynchronously for the next audio block from the queue
             # This will block until data is available, but won't block the event loop.
-            frame = await self.audio_queue.get()
-            frame = np.squeeze(frame) # Remove single-dimensional entries from the shape of an array
+            frame_data = await self.audio_queue.get()
+            frame_data = np.squeeze(frame_data)
 
             # Reshape for AV frame based on channel configuration
-            if len(frame.shape) == 1:
-                # Mono shape (960,) → (1, 960) for av.AudioFrame
-                frame = np.expand_dims(frame, axis=0)
+            # This logic remains correct for av.AudioFrame.from_ndarray
+            if len(frame_data.shape) == 1:
+                frame_data = np.expand_dims(frame_data, axis=0)
                 layout = "mono"
-            elif frame.shape[1] == 1:
-                # If shape is (N, 1), transpose to (1, N) for mono
-                frame = frame.T
+            elif frame_data.shape[1] == 1:
+                frame_data = frame_data.T
                 layout = "mono"
-            elif frame.shape[1] == 2:
-                # Stereo shape (N, 2), transpose to (2, N) for stereo
-                frame = frame.T
+            elif frame_data.shape[1] == 2:
+                frame_data = frame_data.T
                 layout = "stereo"
             else:
-                raise ValueError(f"Unsupported audio shape: {frame.shape}")
+                raise ValueError(f"Unsupported audio shape: {frame_data.shape}")
 
             # Timestamping for the audio frame
-            # pts (presentation timestamp) is the cumulative number of samples
             pts = self.sequence * self.blocksize
-            # time_base defines the unit of pts (1/samplerate seconds per sample)
             time_base = fractions.Fraction(1, self.samplerate)
-            self.sequence += 1 # Increment sequence for the next frame
+            self.sequence += 1
 
-            # Create an av.AudioFrame from the numpy array
-            audio_frame = av.AudioFrame.from_ndarray(frame, format="s16", layout=layout)
+            audio_frame = av.AudioFrame.from_ndarray(frame_data, format="s16", layout=layout)
             audio_frame.sample_rate = self.samplerate
             audio_frame.pts = pts
             audio_frame.time_base = time_base

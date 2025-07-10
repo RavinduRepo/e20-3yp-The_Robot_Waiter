@@ -60,10 +60,9 @@ class MicrophoneAudioTrack(MediaStreamTrack):
         self.blocksize = 960  # 960 samples = 20ms @ 48kHz
         self.sequence = 0
         
-        # Set a reasonable maxsize for the queue.
-        # 100 blocks * 20ms/block = 2 seconds of buffer.
-        # This gives some leeway for network fluctuations without adding too much latency.
-        self.audio_queue = asyncio.Queue(maxsize=100) 
+        # Increased maxsize significantly to absorb very large delays.
+        # 1500 blocks * 20ms/block = 30 seconds of buffer.
+        self.audio_queue = asyncio.Queue(maxsize=1500) 
 
         # Define the callback function for the sounddevice stream
         def audio_callback(indata, frames, time, status):

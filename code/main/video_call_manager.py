@@ -244,7 +244,7 @@ async def play_audio_track(track):
     try:
         print("waiting for first frame")
         # Get first frame to determine audio parameters
-        first_frame = await asyncio.wait_for(track.recv(), timeout=5.0)
+        first_frame = await track.recv()
         
         sample_rate = first_frame.sample_rate or 48000
         layout_channels = len(first_frame.layout.channels)

@@ -52,7 +52,7 @@ class PiCameraVideoTrack(VideoStreamTrack):
 class MicrophoneAudioTrack(MediaStreamTrack):
     kind = "audio"
 
-    def __init__(self, device=None, samplerate=8000, channels=1):
+    def __init__(self, device=None, samplerate=44100, channels=1):
         super().__init__()  # Initialize base MediaStreamTrack
         self.device = device
         self.samplerate = samplerate

@@ -342,7 +342,6 @@ The Robot Waiter project aims to revolutionize the hospitality industry by provi
 - [Employee Backend (Node.js)](https://github.com/kushanmalintha/3YP_RW_employee-_backend)
 - [Employee Interface (React)](https://github.com/kushanmalintha/3YP_RW_employee_interface)
 - [Kitchen Backend (Node.js)](https://github.com/E20434/3YP_RW_kitchen_backend)
-- [Kitchen Interface (React)](https://github.com/AIFERNANDOE20100/3YP_RW_kitchen_interface)
 - [Department of Computer Engineering](http://www.ce.pdn.ac.lk/)
 - [University of Peradeniya](https://eng.pdn.ac.lk/)
 - [Project Page](https://cepdnaclk.github.io/eYY-3yp-The_Robot_Waiter){:target="_blank"}

@@ -260,7 +260,27 @@ async def play_audio_track(track):
         # Get first frame to determine audio parameters
         first_frame = await track.recv()
         
-        sample_rate = first_frame.sample_rate or 48000
+        # Try to get sample rate from multiple sources
+        sample_rate = first_frame.sample_rate
+        print(f"[DEBUG] Frame sample rate: {sample_rate}")
+        print(f"[DEBUG] Frame format: {first_frame.format}")
+        print(f"[DEBUG] Frame layout: {first_frame.layout}")
+        
+        # Force common sample rates if detection fails
+        if sample_rate is None or sample_rate == 0:
+            sample_rate = 48000
+            print(f"[DEBUG] Using default sample rate: {sample_rate}")
+        
+        # Check if sample rate seems wrong (too low causes deep sound)
+        if sample_rate < 16000:
+            print(f"[DEBUG] Sample rate {sample_rate} seems too low, trying 48000")
+            sample_rate = 48000
+        
+        # Test: Try doubling sample rate if sound is too deep
+        # You can comment this out if it doesn't help
+        test_sample_rate = sample_rate * 2
+        print(f"[DEBUG] Testing with doubled sample rate: {test_sample_rate}")
+        sample_rate = test_sample_rate
         
         # Process first frame to get actual format
         pcm = first_frame.to_ndarray()
@@ -287,7 +307,7 @@ async def play_audio_track(track):
             print(f"[x] Unexpected PCM shape: {pcm.shape}")
             return
         
-        print(f"[✓] Actual audio format: {detected_channels} channels, {sample_rate} Hz")
+        print(f"[✓] Final audio config: {detected_channels} channels, {sample_rate} Hz, dtype: {original_dtype}")
         print(f"[DEBUG] Final PCM shape: {pcm.shape}")
         
         # Initialize audio handler with the current event loop
@@ -333,7 +353,6 @@ async def play_audio_track(track):
     finally:
         if audio_handler:
             audio_handler.stop()
-
 
 async def main(call_id):
     global pc

@@ -167,45 +167,48 @@ async def play_audio_track(track):
         print("waiting for first frame")
         first_frame = await track.recv()
         sample_rate = first_frame.sample_rate or 48000
-        channels = len(first_frame.layout.channels)
-        print(f"[✓] Incoming audio: {channels} channel(s), {sample_rate} Hz")
+        layout_channels = len(first_frame.layout.channels)
+        print(f"[✓] Incoming audio layout: {layout_channels} channel(s), {sample_rate} Hz")
+
+        # Actually check the shape of the first frame
+        first_pcm = first_frame.to_ndarray()
+        print(f"→ First frame PCM shape: {first_pcm.shape}, dtype: {first_pcm.dtype}")
+
+        # Real detected channels
+        detected_channels = first_pcm.shape[0] if first_pcm.ndim == 2 else 1
+        print(f"[→] Detected channels from PCM shape: {detected_channels}")
 
         stream = sd.OutputStream(
             samplerate=sample_rate,
-            channels=channels,
+            channels=detected_channels,
             dtype='int16',
-            device=0  # adjust if needed
+            device=0
         )
         stream.start()
         print("stream started")
 
-        max_record_seconds = 5
         recorded_frames = deque()
         total_samples = 0
-        print("while on")
+        max_record_seconds = 5
 
         while True:
             frame = first_frame if total_samples == 0 else await track.recv()
             pcm = frame.to_ndarray()
             print(f"→ Raw pcm shape: {pcm.shape}, dtype: {pcm.dtype}")
 
-            # Fix shape: output must be (frames, channels)
-            if pcm.shape[0] == channels:
-                pcm = pcm.T
-                print("→ Transposed to:", pcm.shape)
-            elif pcm.ndim == 1:
-                pcm = np.expand_dims(pcm, axis=1)
-                print("→ Expanded to:", pcm.shape)
+            # Ensure shape is (samples, channels)
+            if pcm.ndim == 1:
+                pcm = np.expand_dims(pcm, axis=1)  # (samples, 1)
+            elif pcm.shape[0] == detected_channels:
+                pcm = pcm.T  # (samples, channels)
 
-            if pcm.dtype != np.int16:
-                pcm = pcm.astype(np.int16)
+            print(f"[Debug] Prepared PCM shape for stream: {pcm.shape}")
 
-            print(f"[Debug] Sending to stream.write() shape: {pcm.shape}, stream channels: {stream.channels}")
-            try:
-                stream.write(pcm)
-            except Exception as e:
-                print(f"[!] stream.write() error: {e}")
+            if pcm.shape[1] != stream.channels:
+                print(f"[!] Mismatch: pcm has {pcm.shape[1]} channels, stream expects {stream.channels}")
                 break
+
+            stream.write(pcm)
 
             recorded_frames.append(pcm.copy())
             total_samples += pcm.shape[0]
@@ -219,8 +222,11 @@ async def play_audio_track(track):
     except Exception as e:
         print(f"[x] Error during audio playback: {e}")
     finally:
-        stream.stop()
-        stream.close()
+        try:
+            stream.stop()
+            stream.close()
+        except:
+            pass
 
 # Global PC
 pc = None

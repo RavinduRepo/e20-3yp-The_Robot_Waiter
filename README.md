@@ -32,7 +32,7 @@ The Robot Waiter is a remotely controlled service robot designed to assist in th
 
 # step by step
 
-##  🧠 Step 1: Understand the Roles in the System
+##   Step 1: Understand the Roles in the System
 There are three main players in this system:
 
 Admin – The boss. Controls everything.
@@ -41,7 +41,7 @@ Employee – Waiters or staff who control the robots.
 
 Robot – The actual robot that does tasks (like delivering food).
 
-##  🏗 Step 2: What the System is Made Of (Architecture)
+##   Step 2: What the System is Made Of (Architecture)
 The system is made of different parts that talk to each other:
 
 A cloud database (Firebase) to store information.
@@ -54,7 +54,7 @@ A web interface for employees and admin to log in and control things.
 
 A temporary communication channel (WebSocket) used once to share robot info.
 
-##  🔐 Step 3: Admin Sets Up the System
+##   Step 3: Admin Sets Up the System
 What Admin Can Do:
 Signs up to the system (using email/password).
 
@@ -66,14 +66,14 @@ Sees a dashboard of robots and employees.
 
 ✅ After this, the system is ready to be used.
 
-## 👨‍🍳 Step 4: Employee Logs In
+##  Step 4: Employee Logs In
 Employee goes to the website.
 
 Logs in using the credentials given by the Admin.
 
 Can now see a list of available robots.
 
-##  🤖 Step 5: Robot is Powered On and Connects to Backend
+##   Step 5: Robot is Powered On and Connects to Backend
 When a robot is turned on:
 
 The robot backend program (in Python) starts running on the robot.
@@ -82,12 +82,8 @@ It waits for a message from the cloud using AWS MQTT on the topic /connect.
 
 It does nothing until an employee selects it.
 
-##  📱 Step 6: Employee Selects a Robot
-From their interface, the employee selects a robot from the list.
 
-The selected robot's ID is sent to AWS MQTT to a special channel: /connect.
-
-##  🔁 Step 7: Robot Backend Receives the Connection Request
+##   Step 6: Robot Backend Receives the Connection Request
 The robot:
 
 Was listening to the /connect channel.
@@ -96,7 +92,7 @@ Now sees a message with its ID.
 
 Once it sees this, it starts a WebSocket connection with the robot’s frontend interface.
 
-##  🌐 Step 8: Robot Shares Its Info Temporarily via WebSocket
+##   Step 7: Robot Shares Its Info Temporarily via WebSocket
 The robot and its frontend:
 
 Can’t talk directly, so they use a WebSocket tunnel (temporary).
@@ -105,14 +101,19 @@ Through this tunnel, the robot shares its details (status, availability, etc.).
 
 These details go to the Firebase database.
 
-##  🔚 Step 9: WebSocket is Closed
+##   Step 8: Employee Selects a Robot
+From their interface, the employee selects a robot from the list.
+
+The selected robot's ID is sent to AWS MQTT to a special channel: /connect.
+
+##   Step 9: WebSocket is Closed
 After sharing its info, the WebSocket is closed.
 
 From now on, Firebase stores the robot data.
 
 Backend no longer talks to the frontend directly.
 
-##  📡 Step 10: System Enters Communication Mode (Live Control)
+##   Step 10: System Enters Communication Mode (Live Control)
 Now everything is set up for real-time control:
 
 Robot:
@@ -127,14 +128,14 @@ Sends commands to the robot by publishing to the same topic (robot/123/commands)
 
 This is how they “talk” to each other.
 
-##  🔁 Step 11: Real-Time Interaction
+##   Step 11: Real-Time Interaction
 Employee presses buttons on their interface (like a remote).
 
 Each button sends a command through AWS MQTT.
 
 Robot receives the command and moves accordingly.
 
-##  🔄 Step 12: Repeat as Needed
+##  Step 12: Repeat as Needed
 The robot can update its status to Firebase.
 
 Admin or employee can monitor it.
@@ -162,7 +163,7 @@ Detailed designs for the hardware and software components will include:
 
 ---
 
-# 🤖 How to Physically Build the Robot – Step-by-Step Guide
+#  How to Physically Build the Robot – Step-by-Step Guide
 
 ![image](https://github.com/user-attachments/assets/56dab1f8-1854-4d79-8a9d-c675134c3541)
 
@@ -200,21 +201,21 @@ Before we begin, make sure you have all these components:
 ✅ 2 Ultrasonic sensors (for obstacle detection)
 
 🛠 Step-by-Step Assembly Procedure
-## 🪛 Step 1: Prepare the Wooden Chassis
+##  Step 1: Prepare the Wooden Chassis
 Take the wooden chassis box.
 
 Ensure it's strong and balanced to hold all the components.
 
 Drill holes for screws to mount motors and wheels.
 
-## 🚗 Step 2: Mount the Motors and Wheels
+##  Step 2: Mount the Motors and Wheels
 Attach the 4 gear motors to the chassis using screws.
 
 Connect one wheel to each motor.
 
 Make sure the wheels are aligned straight and can rotate freely.
 
-## 🏗 Step 3: Build the Frame
+##  Step 3: Build the Frame
 Attach the aluminium frame vertically on the chassis.
 
 Fix the two wooden plates:
@@ -223,42 +224,42 @@ One near the bottom to hold the battery and electronics.
 
 One on top to hold the display and camera.
 
-## 🔋 Step 4: Add Power Supply
+##  Step 4: Add Power Supply
 Place the 12V Li-ion battery securely inside the chassis.
 
 Connect the buck converter to the battery to step down voltage to 5V for Raspberry Pi and sensors.
 
 Ensure proper insulation to prevent short circuits.
 
-## 🧠 Step 5: Mount the Raspberry Pi and Dot Board
+##  Step 5: Mount the Raspberry Pi and Dot Board
 Fix the Raspberry Pi securely on the lower platform.
 
 Attach the dot board next to it (used for custom wiring).
 
 Fix the 2 motor controllers on the dot board or chassis wall.
 
-## ⚡ Step 6: Wire the Motors
+##  Step 6: Wire the Motors
 Connect each pair of motors (left side and right side) to one motor controller.
 
 Wire the motor controllers to the GPIO pins of Raspberry Pi through the dot board.
 
 Connect the motor controllers’ power lines to the 12V battery.
 
-##  🎥 Step 7: Install the Camera and Display
+##   Step 7: Install the Camera and Display
 Mount the camera module on the top plate, facing forward.
 
 Secure the display screen next to or above the camera.
 
 Wire both to the Raspberry Pi using their respective connectors (camera via CSI, display via HDMI/GPIO).
 
-## 📡 Step 8: Add Ultrasonic Sensors
+##  Step 8: Add Ultrasonic Sensors
 Attach 2 ultrasonic sensors to the front corners of the robot.
 
 Face them outward for obstacle detection.
 
 Wire them to the Raspberry Pi’s GPIO pins.
 
-## 🔌 Step 9: Power and Safety Check
+##  Step 9: Power and Safety Check
 Double-check all wiring – make sure no wires are loose or shorted.
 
 Secure all components using tape, brackets, or screws.
@@ -278,7 +279,7 @@ Camera and display work.
 
 Ultrasonic sensors give distance readings.
 
-## 🧪 Optional Step: Tidy the Wiring
+##  Optional Step: Tidy the Wiring
 Use zip ties or cable sleeves to clean up messy wires.
 
 Label the connections if needed for easy debugging.

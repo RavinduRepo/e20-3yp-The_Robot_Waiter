@@ -61,6 +61,7 @@ class MicrophoneAudioTrack(MediaStreamTrack):
         self.blocksize = 960  # 960 samples = 20ms @ 48kHz
         self.sequence = 0
 
+        # Initialize the sounddevice input stream
         self.stream = sd.InputStream(
             device=self.device,
             channels=self.channels,
@@ -69,44 +70,53 @@ class MicrophoneAudioTrack(MediaStreamTrack):
             blocksize=self.blocksize,
             latency='low',
         )
-        self.stream.start()
-
+        self.stream.start() # Start the audio stream
 
     async def recv(self):
         try:
             # Read a block of audio samples (20ms)
+            # This call is blocking and will wait for the specified blocksize of samples
             frame, _ = self.stream.read(self.blocksize)
-            frame = np.squeeze(frame)
+            frame = np.squeeze(frame) # Remove single-dimensional entries from the shape of an array
 
-            # Reshape for AV frame
+            # Reshape for AV frame based on channel configuration
             if len(frame.shape) == 1:
-                # Mono shape (960,) → (1, 960)
+                # Mono shape (960,) → (1, 960) for av.AudioFrame
                 frame = np.expand_dims(frame, axis=0)
                 layout = "mono"
             elif frame.shape[1] == 1:
+                # If shape is (N, 1), transpose to (1, N) for mono
                 frame = frame.T
                 layout = "mono"
             elif frame.shape[1] == 2:
+                # Stereo shape (N, 2), transpose to (2, N) for stereo
                 frame = frame.T
                 layout = "stereo"
             else:
                 raise ValueError(f"Unsupported audio shape: {frame.shape}")
 
-            # Timestamping
+            # Timestamping for the audio frame
+            # pts (presentation timestamp) is the cumulative number of samples
             pts = self.sequence * self.blocksize
+            # time_base defines the unit of pts (1/samplerate seconds per sample)
             time_base = fractions.Fraction(1, self.samplerate)
-            self.sequence += 1
+            self.sequence += 1 # Increment sequence for the next frame
 
+            # Create an av.AudioFrame from the numpy array
             audio_frame = av.AudioFrame.from_ndarray(frame, format="s16", layout=layout)
             audio_frame.sample_rate = self.samplerate
             audio_frame.pts = pts
             audio_frame.time_base = time_base
-            await asyncio.sleep(self.blocksize / self.samplerate)  # 960 / 48000 = 0.02s (20ms)
+
+            # IMPORTANT: Removed the asyncio.sleep here.
+            # The sounddevice.InputStream.read() call is already blocking and
+            # paces the audio capture to real-time. Adding an additional sleep
+            # causes buffering and leads to audio bursts.
 
             return audio_frame
 
         except Exception as e:
-            print("[x] Error in recv():", e)
+            print(f"[x] Error in MicrophoneAudioTrack.recv(): {e}")
             return None
 
 def get_usb_microphone(name_contains="USB"):

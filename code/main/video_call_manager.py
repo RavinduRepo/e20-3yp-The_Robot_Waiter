@@ -250,8 +250,9 @@ async def play_audio_track(track):
         
         print(f"[✓] Audio format: {layout_channels} channels, {sample_rate} Hz")
         
-        # Initialize audio handler
-        audio_handler = AudioPlaybackHandler()
+        # Initialize audio handler with the current event loop
+        main_loop = asyncio.get_running_loop()
+        audio_handler = AudioPlaybackHandler(main_loop)
         
         # Process first frame
         pcm = first_frame.to_ndarray()

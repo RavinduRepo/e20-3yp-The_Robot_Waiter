@@ -174,7 +174,7 @@ async def play_audio_track(track):
             samplerate=sample_rate,
             channels=channels,
             dtype='int16',
-            device=0  # headset jack
+            device=0  # Use appropriate output device (headset jack)
         )
         stream.start()
         print("stream started")
@@ -188,19 +188,29 @@ async def play_audio_track(track):
             frame = first_frame if total_samples == 0 else await track.recv()
             pcm = frame.to_ndarray()
 
-            # Shape fix: always shape = (frames, channels)
+            print(f"→ Raw pcm shape: {pcm.shape}, dtype: {pcm.dtype}")
+
+            # Fix for mono and stereo
             if pcm.ndim == 1:
-                pcm = np.expand_dims(pcm, axis=1)  # shape (frames, 1)
+                pcm = np.expand_dims(pcm, axis=1)
+                print("→ Expanded to:", pcm.shape)
             elif pcm.shape[0] != pcm.shape[1] and pcm.shape[0] == channels:
-                pcm = pcm.T  # transpose if shape is (channels, frames)
+                pcm = pcm.T
+                print("→ Transposed to:", pcm.shape)
 
             if pcm.dtype != np.int16:
                 pcm = pcm.astype(np.int16)
 
-            stream.write(pcm)
+            print(f"[Debug] Sending to stream.write() shape: {pcm.shape}, stream channels: {stream.channels}")
+
+            try:
+                stream.write(pcm)
+            except Exception as e:
+                print(f"[!] stream.write() error: {e}")
+                break
 
             recorded_frames.append(pcm.copy())
-            total_samples += pcm.shape[0]  # frames
+            total_samples += pcm.shape[0]
 
             if total_samples >= max_record_seconds * sample_rate:
                 all_data = np.concatenate(recorded_frames, axis=0)

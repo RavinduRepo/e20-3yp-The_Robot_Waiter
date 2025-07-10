@@ -59,7 +59,11 @@ class MicrophoneAudioTrack(MediaStreamTrack):
         self.channels = channels
         self.blocksize = 960  # 960 samples = 20ms @ 48kHz
         self.sequence = 0
-        self.audio_queue = asyncio.Queue() # Queue to hold audio frames
+        
+        # Set a reasonable maxsize for the queue.
+        # 100 blocks * 20ms/block = 2 seconds of buffer.
+        # This gives some leeway for network fluctuations without adding too much latency.
+        self.audio_queue = asyncio.Queue(maxsize=100) 
 
         # Define the callback function for the sounddevice stream
         def audio_callback(indata, frames, time, status):
@@ -68,6 +72,7 @@ class MicrophoneAudioTrack(MediaStreamTrack):
             whenever new audio data is available.
             """
             if status:
+                # Log status messages, especially 'input overflow'
                 print(f"Sounddevice callback status: {status}")
             
             # Put the audio data into the asyncio queue.
@@ -76,11 +81,11 @@ class MicrophoneAudioTrack(MediaStreamTrack):
             try:
                 # Make a copy of indata as sounddevice reuses the buffer
                 self.audio_queue.put_nowait(np.copy(indata))
+                # print(f"Audio queue size: {self.audio_queue.qsize()}") # For debugging
             except asyncio.QueueFull:
                 # This indicates that the consumer (recv method) is not
-                # processing data fast enough. We could log this or
-                # implement a dropping strategy. For now, just print.
-                print("Audio queue is full, dropping audio block.")
+                # processing data fast enough. This is the cause of 'input overflow'.
+                print("Audio queue is full, dropping audio block (consumer too slow).")
             except Exception as e:
                 print(f"Error in audio_callback: {e}")
 
@@ -91,7 +96,7 @@ class MicrophoneAudioTrack(MediaStreamTrack):
             samplerate=self.samplerate,
             dtype='int16',
             blocksize=self.blocksize,
-            latency='low',
+            latency='low', # Keep latency low for real-time communication
             callback=audio_callback # Pass the callback function here
         )
         self.stream.start() # Start the audio stream
@@ -99,6 +104,7 @@ class MicrophoneAudioTrack(MediaStreamTrack):
     async def recv(self):
         try:
             # Wait asynchronously for the next audio block from the queue
+            # This will block until data is available, but won't block the event loop.
             frame = await self.audio_queue.get()
             frame = np.squeeze(frame) # Remove single-dimensional entries from the shape of an array
 
@@ -136,7 +142,7 @@ class MicrophoneAudioTrack(MediaStreamTrack):
         except Exception as e:
             print(f"[x] Error in MicrophoneAudioTrack.recv(): {e}")
             return None
-
+        
 def get_usb_microphone(name_contains="USB"):
     """Finds the first input device with a name containing the given substring."""
     devices = sd.query_devices()

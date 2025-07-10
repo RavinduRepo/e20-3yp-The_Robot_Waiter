@@ -49,7 +49,6 @@ class PiCameraVideoTrack(VideoStreamTrack):
         video_frame.time_base = time_base
         return video_frame
 
-
 class MicrophoneAudioTrack(MediaStreamTrack):
     kind = "audio"
 
@@ -74,9 +73,21 @@ class MicrophoneAudioTrack(MediaStreamTrack):
 
     async def recv(self):
         try:
-            # Read a block of audio samples (20ms)
-            # This call is blocking and will wait for the specified blocksize of samples
-            frame, _ = self.stream.read(self.blocksize)
+            # Get the current running event loop. This is safe to do inside recv
+            # as recv is called within the asyncio event loop.
+            loop = asyncio.get_running_loop()
+
+            # Read a block of audio samples (20ms) using run_in_executor.
+            # This offloads the blocking sounddevice.read() call to a separate
+            # thread, preventing it from blocking the main asyncio event loop.
+            # This allows the event loop to remain responsive and process
+            # WebRTC signaling and packet sending efficiently, preventing
+            # audio buffering and bursting.
+            frame, _ = await loop.run_in_executor(
+                None,  # Use the default ThreadPoolExecutor
+                self.stream.read,
+                self.blocksize
+            )
             frame = np.squeeze(frame) # Remove single-dimensional entries from the shape of an array
 
             # Reshape for AV frame based on channel configuration
@@ -107,11 +118,6 @@ class MicrophoneAudioTrack(MediaStreamTrack):
             audio_frame.sample_rate = self.samplerate
             audio_frame.pts = pts
             audio_frame.time_base = time_base
-
-            # IMPORTANT: Removed the asyncio.sleep here.
-            # The sounddevice.InputStream.read() call is already blocking and
-            # paces the audio capture to real-time. Adding an additional sleep
-            # causes buffering and leads to audio bursts.
 
             return audio_frame
 

@@ -52,17 +52,21 @@ class PiCameraVideoTrack(VideoStreamTrack):
 class MicrophoneAudioTrack(MediaStreamTrack):
     kind = "audio"
 
-    def __init__(self, device=None, samplerate=44100, channels=1):
+    def __init__(self, device=None, samplerate=48000, channels=1): # Reverted samplerate to 48000
         super().__init__()  # Initialize base MediaStreamTrack
         self.device = device
         self.samplerate = samplerate
         self.channels = channels
-        self.blocksize = 960  # Slightly increased blocksize (approx 21.33ms @ 48kHz)
+        self.blocksize = 960  # Reverted blocksize to 960 (20ms at 48kHz)
         self.sequence = 0
         
         # Increased maxsize further to absorb more significant delays.
-        # 2000 blocks * (1500/48000)s/block = ~42.6 seconds of buffer.
+        # 2000 blocks * (960/48000)s/block = ~40 seconds of buffer.
         self.audio_queue = asyncio.Queue(maxsize=2000) 
+
+        # Define a noise threshold for simple noise gating (RMS value)
+        # This value might need to be tuned based on your microphone and environment.
+        self.NOISE_THRESHOLD_RMS = 500 
 
         # Define the callback function for the sounddevice stream
         def audio_callback(indata, frames, time, status):
@@ -102,6 +106,17 @@ class MicrophoneAudioTrack(MediaStreamTrack):
             # This will block until data is available, but won't block the event loop.
             frame_data = await self.audio_queue.get()
             frame_data = np.squeeze(frame_data)
+
+            # --- Simple Noise Gating ---
+            # Calculate RMS (Root Mean Square) of the audio block
+            # RMS = sqrt(mean(x^2))
+            # np.float64 is used for calculation to prevent overflow with int16, then cast back
+            rms = np.sqrt(np.mean(np.square(frame_data.astype(np.float64))))
+
+            # If RMS is below the threshold, silence the block
+            if rms < self.NOISE_THRESHOLD_RMS:
+                frame_data = np.zeros_like(frame_data)
+            # --- End Noise Gating ---
 
             # Reshape for AV frame based on channel configuration
             # This logic remains correct for av.AudioFrame.from_ndarray

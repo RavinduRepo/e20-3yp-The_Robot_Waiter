@@ -174,9 +174,8 @@ class AudioPlaybackHandler:
                     samplerate=sample_rate,
                     channels=channels,
                     dtype='int16',
-                    blocksize=1024,  # Increased blocksize for more stable playback
+                    blocksize=2048,  # Larger blocksize for more stable playback
                     latency='high',  # Use high latency mode for more stable playback
-                    extra_settings=sd.CoreAudioSettings(channel_map=[1, 2]) if channels == 2 else None
                 )
                 stream.start()
                 self.stream = stream
@@ -186,22 +185,26 @@ class AudioPlaybackHandler:
                 
                 # Build up initial buffer to prevent underruns
                 buffer = []
-                buffer_target = 5  # Target 5 frames before starting playback
+                buffer_target = 10  # Target 10 frames before starting playback
+                buffering = True
                 
                 # Process audio frames
                 while self.running:
                     try:
                         # Get audio data from the thread-safe queue using the main event loop
                         future = asyncio.run_coroutine_threadsafe(
-                            asyncio.wait_for(self.audio_queue.get(), timeout=0.1),
+                            asyncio.wait_for(self.audio_queue.get(), timeout=0.05),
                             self.main_loop  # Use the stored main loop reference
                         )
-                        pcm_data = future.result(timeout=0.2)
+                        pcm_data = future.result(timeout=0.1)
                         
                         if pcm_data is not None:
-                            # Build buffer first
-                            if len(buffer) < buffer_target:
+                            if buffering:
+                                # Build buffer first
                                 buffer.append(pcm_data)
+                                if len(buffer) >= buffer_target:
+                                    buffering = False
+                                    print(f"[✓] Buffer filled, starting playback")
                             else:
                                 # Play from buffer first, then new data
                                 if buffer:
@@ -211,7 +214,10 @@ class AudioPlaybackHandler:
                                     
                     except Exception as e:
                         if self.running:  # Only log if we're still supposed to be running
-                            print(f"[x] Playback worker error: {e}")
+                            # Generate silence to prevent underruns
+                            silence = np.zeros((2048, channels), dtype=np.int16)
+                            if not buffering:
+                                stream.write(silence)
                         continue
                         
             except Exception as e:
@@ -244,10 +250,6 @@ class AudioPlaybackHandler:
         self.running = False
         self.executor.shutdown(wait=True)
 
-# Global variables
-pc = None
-audio_handler = None
-
 async def play_audio_track(track):
     """Optimized audio playback using separate thread"""
     global audio_handler
@@ -259,36 +261,45 @@ async def play_audio_track(track):
         first_frame = await track.recv()
         
         sample_rate = first_frame.sample_rate or 48000
-        layout_channels = len(first_frame.layout.channels)
         
-        print(f"[✓] Audio format: {layout_channels} channels, {sample_rate} Hz")
+        # Process first frame to get actual format
+        pcm = first_frame.to_ndarray()
+        print(f"[DEBUG] Raw PCM shape: {pcm.shape}, dtype: {pcm.dtype}")
+        
+        if pcm.dtype != np.int16:
+            if pcm.dtype == np.float32 or pcm.dtype == np.float64:
+                pcm = (pcm * 32767).astype(np.int16)
+            else:
+                pcm = pcm.astype(np.int16)
+            
+        # Determine actual channels from PCM data
+        if pcm.ndim == 1:
+            detected_channels = 1
+        elif pcm.ndim == 2:
+            # Check which dimension is channels vs samples
+            if pcm.shape[0] == 1 or pcm.shape[0] == 2:
+                # (channels, samples) format
+                detected_channels = pcm.shape[0]
+                pcm = pcm.T  # Convert to (samples, channels)
+            else:
+                # (samples, channels) format
+                detected_channels = pcm.shape[1]
+        else:
+            print(f"[x] Unexpected PCM shape: {pcm.shape}")
+            return
+        
+        print(f"[✓] Actual audio format: {detected_channels} channels, {sample_rate} Hz")
+        print(f"[DEBUG] Final PCM shape: {pcm.shape}")
         
         # Initialize audio handler with the current event loop
         main_loop = asyncio.get_running_loop()
         audio_handler = AudioPlaybackHandler(main_loop)
         
-        # Process first frame
-        pcm = first_frame.to_ndarray()
-        if pcm.dtype != np.int16:
-            pcm = (pcm * 32767).astype(np.int16)  # Proper scaling for int16
-            
-        # Handle channel detection properly
-        if pcm.ndim == 1:
-            detected_channels = 1
-            pcm = pcm.reshape(-1, 1)  # Make it (samples, 1)
-        elif pcm.ndim == 2:
-            if pcm.shape[0] > pcm.shape[1]:
-                # (samples, channels) format
-                detected_channels = pcm.shape[1]
-            else:
-                # (channels, samples) format - transpose it
-                pcm = pcm.T
-                detected_channels = pcm.shape[1]
-        
-        print(f"[✓] Detected channels: {detected_channels}")
-        
         # Start playback thread
         audio_handler.start_playback_thread(sample_rate, detected_channels)
+        
+        # Wait a bit to let the playback thread initialize
+        await asyncio.sleep(0.1)
         
         # Add first frame
         await audio_handler.add_audio_frame(pcm)
@@ -300,14 +311,16 @@ async def play_audio_track(track):
                 frame = await asyncio.wait_for(track.recv(), timeout=0.1)
                 
                 pcm = frame.to_ndarray()
+                
                 if pcm.dtype != np.int16:
-                    pcm = (pcm * 32767).astype(np.int16)  # Proper scaling for int16
+                    if pcm.dtype == np.float32 or pcm.dtype == np.float64:
+                        pcm = (pcm * 32767).astype(np.int16)
+                    else:
+                        pcm = pcm.astype(np.int16)
                 
                 # Handle channel format consistently
-                if pcm.ndim == 1:
-                    pcm = pcm.reshape(-1, 1)  # Make it (samples, 1)
-                elif pcm.ndim == 2:
-                    if pcm.shape[0] < pcm.shape[1]:
+                if pcm.ndim == 2:
+                    if pcm.shape[0] == detected_channels and pcm.shape[1] > pcm.shape[0]:
                         # (channels, samples) format - transpose it
                         pcm = pcm.T
                 

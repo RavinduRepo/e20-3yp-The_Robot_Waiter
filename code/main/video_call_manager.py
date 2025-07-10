@@ -165,7 +165,6 @@ async def play_audio_track(track):
 
     try:
         print("waiting for first frame")
-        # Wait for first frame to get audio properties
         first_frame = await track.recv()
         sample_rate = first_frame.sample_rate or 48000
         channels = len(first_frame.layout.channels)
@@ -175,38 +174,36 @@ async def play_audio_track(track):
             samplerate=sample_rate,
             channels=channels,
             dtype='int16',
-            device=0  # change if needed
+            device=0  # headset jack
         )
         stream.start()
         print("stream started")
 
-        # Recording setup
         max_record_seconds = 5
         recorded_frames = deque()
         total_samples = 0
         print("while on")
+
         while True:
             frame = first_frame if total_samples == 0 else await track.recv()
             pcm = frame.to_ndarray()
+
+            # Shape fix: always shape = (frames, channels)
+            if pcm.ndim == 1:
+                pcm = np.expand_dims(pcm, axis=1)  # shape (frames, 1)
+            elif pcm.shape[0] != pcm.shape[1] and pcm.shape[0] == channels:
+                pcm = pcm.T  # transpose if shape is (channels, frames)
+
             if pcm.dtype != np.int16:
                 pcm = pcm.astype(np.int16)
 
-            # Save the frame
+            stream.write(pcm)
+
             recorded_frames.append(pcm.copy())
-            total_samples += pcm.shape[-1]
+            total_samples += pcm.shape[0]  # frames
 
-            # Play audio
-            stream.write(pcm.T if pcm.ndim > 1 else pcm)
-
-            # Save to .wav after enough data
             if total_samples >= max_record_seconds * sample_rate:
-                all_data = np.concatenate(recorded_frames, axis=-1)
-
-                if all_data.ndim == 1:
-                    all_data = np.expand_dims(all_data, axis=0)
-
-                all_data = all_data.T  # shape: (samples, channels)
-
+                all_data = np.concatenate(recorded_frames, axis=0)
                 print("[✓] Saving audio with scipy to 'web_audio_recorded.wav'")
                 wav_write("web_audio_recorded.wav", sample_rate, all_data)
                 recorded_frames.clear()

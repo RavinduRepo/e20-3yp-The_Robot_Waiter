@@ -214,7 +214,6 @@ async def play_audio_track(track):
 
             print(f"[Debug] Prepared PCM shape for stream: {pcm.shape}")
             stream.write(pcm)
-            await asyncio.sleep(0)  # Yield control to event loop
 
     except Exception as e:
         print(f"[x] Error during audio playback: {e}")

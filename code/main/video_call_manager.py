@@ -157,7 +157,8 @@ def get_usb_microphone(name_contains="USB"):
 class AudioPlaybackHandler:
     """Handles audio playback in a separate thread to avoid blocking the main event loop"""
     
-    def __init__(self):
+    def __init__(self, main_loop):
+        self.main_loop = main_loop  # Store reference to main event loop
         self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="AudioPlayback")
         self.audio_queue = asyncio.Queue(maxsize=10)  # Small buffer for real-time playback
         self.stream = None
@@ -185,11 +186,10 @@ class AudioPlaybackHandler:
                 # Process audio frames
                 while self.running:
                     try:
-                        # Get audio data from the thread-safe queue
-                        # This will block until data is available or timeout
+                        # Get audio data from the thread-safe queue using the main event loop
                         future = asyncio.run_coroutine_threadsafe(
                             asyncio.wait_for(self.audio_queue.get(), timeout=0.1),
-                            asyncio.get_event_loop()
+                            self.main_loop  # Use the stored main loop reference
                         )
                         pcm_data = future.result(timeout=0.2)
                         
@@ -242,9 +242,8 @@ async def play_audio_track(track):
     print("[✓] Starting audio playback from browser")
     
     try:
-        print("waiting for first frame")
         # Get first frame to determine audio parameters
-        first_frame = await track.recv()
+        first_frame = await asyncio.wait_for(track.recv(), timeout=5.0)
         
         sample_rate = first_frame.sample_rate or 48000
         layout_channels = len(first_frame.layout.channels)

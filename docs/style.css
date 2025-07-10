@@ -670,3 +670,126 @@ html {
     content: '';
   }
 }
+
+
+
+/* Timeline Section - Dark Theme */
+.section-timeline {
+  padding: 8rem 5rem;
+  background-color: var(--dark);
+  color: var(--light);
+  text-align: center;
+}
+
+.timeline {
+  position: relative;
+  max-width: 1000px;
+  margin: auto;
+}
+
+.timeline::after {
+  content: '';
+  position: absolute;
+  width: 4px;
+  background-color: var(--secondary);
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  margin-left: -2px;
+}
+
+.timeline-item {
+  padding: 2rem;
+  position: relative;
+  width: 50%;
+  color: var(--light);
+}
+
+.timeline-item .content {
+  background-color: rgba(0, 168, 255, 0.05);
+  border: 1px solid rgba(0, 168, 255, 0.2);
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 8px 16px rgba(0, 255, 200, 0.05);
+  transition: transform 0.3s ease;
+}
+
+.timeline-item .content h3 {
+  color: var(--secondary);
+  margin-bottom: 0.5rem;
+}
+
+.timeline-item .content span {
+  font-size: 0.9rem;
+  opacity: 0.7;
+}
+
+.timeline-item.left {
+  left: 0;
+}
+
+.timeline-item.right {
+  left: 50%;
+}
+
+.timeline-item::after {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  background-color: var(--dark);
+  border: 4px solid var(--secondary);
+  top: 30px;
+  right: -8px;
+  border-radius: 50%;
+  z-index: 1;
+}
+
+.timeline-item.right::after {
+  left: -8px;
+  right: auto;
+}
+
+/* Supervisor Section - Dark Theme */
+.supervisor-section {
+  text-align: center;
+  padding: 8rem 5rem;
+  background-color: var(--dark);
+}
+
+.supervisor-card {
+  width: 220px;
+  margin: auto;
+  padding: 1.5rem;
+  background: rgba(0, 168, 255, 0.05);
+  border: 1px solid rgba(0, 168, 255, 0.15);
+  border-radius: 15px;
+  box-shadow: 0 8px 20px rgba(0, 255, 200, 0.08);
+}
+
+.supervisor-img {
+  width: 100%;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 255, 200, 0.2);
+}
+
+/* Footer - Dark Theme Consistent */
+.footer {
+  background-color: rgba(10, 25, 47, 0.9);
+  color: var(--light);
+  padding: 2rem;
+  text-align: center;
+  border-top: 1px solid rgba(0, 255, 200, 0.1);
+}
+
+.footer-links a {
+  margin: 0 10px;
+  color: var(--secondary);
+  font-weight: 500;
+}
+
+.footer-links a:hover {
+  color: var(--primary);
+}
+
+

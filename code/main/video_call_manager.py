@@ -52,17 +52,21 @@ class PiCameraVideoTrack(VideoStreamTrack):
 class MicrophoneAudioTrack(MediaStreamTrack):
     kind = "audio"
 
-    def __init__(self, device=None, samplerate=44100, channels=1):
+    def __init__(self, device=None, samplerate=48000, channels=1): # Reverted samplerate to 48000
         super().__init__()  # Initialize base MediaStreamTrack
         self.device = device
         self.samplerate = samplerate
         self.channels = channels
-        self.blocksize = 960  # Slightly increased blocksize (approx 21.33ms @ 48kHz)
+        self.blocksize = 960  # Reverted blocksize to 960 (20ms at 48kHz)
         self.sequence = 0
         
         # Increased maxsize further to absorb more significant delays.
-        # 2000 blocks * (1500/48000)s/block = ~42.6 seconds of buffer.
+        # 2000 blocks * (960/48000)s/block = ~40 seconds of buffer.
         self.audio_queue = asyncio.Queue(maxsize=2000) 
+
+        # Define a noise threshold for simple noise gating (RMS value)
+        # This value might need to be tuned based on your microphone and environment.
+        self.NOISE_THRESHOLD_RMS = 500 
 
         # Define the callback function for the sounddevice stream
         def audio_callback(indata, frames, time, status):
@@ -103,6 +107,17 @@ class MicrophoneAudioTrack(MediaStreamTrack):
             frame_data = await self.audio_queue.get()
             frame_data = np.squeeze(frame_data)
 
+            # --- Simple Noise Gating ---
+            # Calculate RMS (Root Mean Square) of the audio block
+            # RMS = sqrt(mean(x^2))
+            # np.float64 is used for calculation to prevent overflow with int16, then cast back
+            rms = np.sqrt(np.mean(np.square(frame_data.astype(np.float64))))
+
+            # If RMS is below the threshold, silence the block
+            if rms < self.NOISE_THRESHOLD_RMS:
+                frame_data = np.zeros_like(frame_data)
+            # --- End Noise Gating ---
+
             # Reshape for AV frame based on channel configuration
             # This logic remains correct for av.AudioFrame.from_ndarray
             if len(frame_data.shape) == 1:
@@ -142,6 +157,41 @@ def get_usb_microphone(name_contains="USB"):
             return idx
     raise RuntimeError(f"No USB microphone found matching '{name_contains}'")
 
+async def play_audio_track(track):
+    print("[✓] Starting audio playback from browser")
+
+    try:
+        # Wait for first frame to get properties
+        first_frame = await track.recv()
+        sample_rate = first_frame.sample_rate or 48000
+        channels = len(first_frame.layout.channels)
+        print(f"[✓] Incoming audio: {channels} channel(s), {sample_rate} Hz")
+
+        stream = sd.OutputStream(
+            samplerate=sample_rate,
+            channels=channels,
+            dtype='int16',
+            device=11  # Change if needed
+        )
+        stream.start()
+
+        pcm = first_frame.to_ndarray()
+        if pcm.dtype != np.int16:
+            pcm = pcm.astype(np.int16)
+        stream.write(pcm.T if pcm.ndim > 1 else pcm)
+
+        while True:
+            frame = await track.recv()
+            pcm = frame.to_ndarray()
+            if pcm.dtype != np.int16:
+                pcm = pcm.astype(np.int16)
+            stream.write(pcm.T if pcm.ndim > 1 else pcm)
+
+    except Exception as e:
+        print(f"[x] Error during audio playback: {e}")
+    finally:
+        stream.stop()
+        stream.close()
 
 # Global PC
 pc = None
@@ -156,6 +206,14 @@ async def main(call_id):
 
     loop = asyncio.get_running_loop()
     pc = RTCPeerConnection(configuration=config)
+
+    @pc.on("track")
+    def on_track(track):
+        print(f"[✓] Received track: {track.kind}")
+        
+        if track.kind == "audio":
+            asyncio.ensure_future(play_audio_track(track))
+
 
     video_track = PiCameraVideoTrack()
     pc.addTrack(video_track)

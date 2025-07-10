@@ -242,6 +242,7 @@ async def play_audio_track(track):
     print("[✓] Starting audio playback from browser")
     
     try:
+        print("waiting for first frame")
         # Get first frame to determine audio parameters
         first_frame = await asyncio.wait_for(track.recv(), timeout=5.0)
         

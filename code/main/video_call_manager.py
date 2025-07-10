@@ -166,6 +166,7 @@ async def play_audio_track(track):
     try:
         print("waiting for first frame")
         first_frame = await track.recv()
+
         sample_rate = first_frame.sample_rate
         if sample_rate is None or sample_rate < 1000:
             print("[!] Invalid or missing sample rate, defaulting to 48000")
@@ -173,66 +174,53 @@ async def play_audio_track(track):
         else:
             print(f"[✓] Detected sample rate: {sample_rate}")
 
-        layout_channels = len(first_frame.layout.channels)
-        print(f"[✓] Incoming audio layout: {layout_channels} channel(s), {sample_rate} Hz")
+        channels = len(first_frame.layout.channels)
+        print(f"[✓] Incoming audio layout: {channels} channel(s), {sample_rate} Hz")
 
-        # Actually check the shape of the first frame
-        first_pcm = first_frame.to_ndarray()
-        print(f"→ First frame PCM shape: {first_pcm.shape}, dtype: {first_pcm.dtype}")
+        # Convert first frame PCM to determine real shape
+        pcm = first_frame.to_ndarray()
+        print(f"→ First frame PCM shape: {pcm.shape}, dtype: {pcm.dtype}")
 
-        # Real detected channels
-        detected_channels = first_pcm.shape[0] if first_pcm.ndim == 2 else 1
+        # Detect actual channels from PCM shape
+        if pcm.ndim == 1:
+            detected_channels = 1
+        else:
+            detected_channels = pcm.shape[0]
+
         print(f"[→] Detected channels from PCM shape: {detected_channels}")
 
         stream = sd.OutputStream(
             samplerate=sample_rate,
             channels=detected_channels,
-            dtype='int16',
-            device=0
+            dtype='int16'
         )
         stream.start()
         print("stream started")
 
-        recorded_frames = deque()
-        total_samples = 0
-        max_record_seconds = 5
-
         while True:
-            frame = first_frame if total_samples == 0 else await track.recv()
-            pcm = frame.to_ndarray()
+            pcm = pcm if 'pcm' in locals() and 'first_frame_used' not in locals() else (await track.recv()).to_ndarray()
+            first_frame_used = True  # skip reuse after first time
+
+            if pcm.dtype != np.int16:
+                pcm = pcm.astype(np.int16)
+
             print(f"→ Raw pcm shape: {pcm.shape}, dtype: {pcm.dtype}")
 
-            # Ensure shape is (samples, channels)
             if pcm.ndim == 1:
-                pcm = np.expand_dims(pcm, axis=1)  # (samples, 1)
-            elif pcm.shape[0] == detected_channels:
-                pcm = pcm.T  # (samples, channels)
+                pcm = pcm[:, np.newaxis]
+
+            elif pcm.shape[0] < pcm.shape[1]:
+                pcm = pcm.T
 
             print(f"[Debug] Prepared PCM shape for stream: {pcm.shape}")
 
-            if pcm.shape[1] != stream.channels:
-                print(f"[!] Mismatch: pcm has {pcm.shape[1]} channels, stream expects {stream.channels}")
-                break
-
             stream.write(pcm)
-
-            recorded_frames.append(pcm.copy())
-            total_samples += pcm.shape[0]
-
-            if total_samples >= max_record_seconds * sample_rate:
-                all_data = np.concatenate(recorded_frames, axis=0)
-                print("[✓] Saving audio with scipy to 'web_audio_recorded.wav'")
-                wav_write("web_audio_recorded.wav", sample_rate, all_data)
-                recorded_frames.clear()
 
     except Exception as e:
         print(f"[x] Error during audio playback: {e}")
     finally:
-        try:
-            stream.stop()
-            stream.close()
-        except:
-            pass
+        stream.stop()
+        stream.close()
 
 # Global PC
 pc = None

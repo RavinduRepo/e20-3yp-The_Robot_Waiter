@@ -157,6 +157,26 @@ def get_usb_microphone(name_contains="USB"):
             return idx
     raise RuntimeError(f"No USB microphone found matching '{name_contains}'")
 
+async def play_audio_track(track):
+    print("[✓] Starting audio playback from browser")
+
+    stream = sd.OutputStream(samplerate=48000, channels=1, dtype='int16')
+    stream.start()
+
+    try:
+        while True:
+            frame = await track.recv()
+            pcm = frame.to_ndarray()
+            if pcm.ndim == 1:
+                stream.write(pcm)
+            else:
+                stream.write(pcm.T)
+    except Exception as e:
+        print(f"[x] Error during audio playback: {e}")
+    finally:
+        stream.stop()
+        stream.close()
+
 # Global PC
 pc = None
 
@@ -170,6 +190,14 @@ async def main(call_id):
 
     loop = asyncio.get_running_loop()
     pc = RTCPeerConnection(configuration=config)
+
+    @pc.on("track")
+    def on_track(track):
+        print(f"[✓] Received track: {track.kind}")
+        
+        if track.kind == "audio":
+            asyncio.ensure_future(play_audio_track(track))
+
 
     video_track = PiCameraVideoTrack()
     pc.addTrack(video_track)

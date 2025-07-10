@@ -166,7 +166,13 @@ async def play_audio_track(track):
     try:
         print("waiting for first frame")
         first_frame = await track.recv()
-        sample_rate = first_frame.sample_rate or 48000
+        sample_rate = first_frame.sample_rate
+        if sample_rate is None or sample_rate < 1000:
+            print("[!] Invalid or missing sample rate, defaulting to 48000")
+            sample_rate = 48000
+        else:
+            print(f"[✓] Detected sample rate: {sample_rate}")
+
         layout_channels = len(first_frame.layout.channels)
         print(f"[✓] Incoming audio layout: {layout_channels} channel(s), {sample_rate} Hz")
 

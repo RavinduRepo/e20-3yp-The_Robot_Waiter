@@ -66,7 +66,7 @@ class MicrophoneAudioTrack(MediaStreamTrack):
         self.audio_queue = asyncio.Queue(maxsize=2000)  # ~0.5 seconds of buffer
 
         # Noise threshold for simple noise gating
-        self.NOISE_THRESHOLD_RMS = 200 
+        self.NOISE_THRESHOLD_RMS = 80 
 
         def audio_callback(indata, frames, time, status):
             """Audio callback - runs in separate thread"""

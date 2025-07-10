@@ -59,7 +59,7 @@ class MicrophoneAudioTrack(MediaStreamTrack):
         self.device = device
         self.samplerate = samplerate
         self.channels = channels
-        self.blocksize = 1500  # Reduced blocksize for lower latency (10ms at 48kHz)
+        self.blocksize = 2000  # Reduced blocksize for lower latency (10ms at 48kHz)
         self.sequence = 0
         
         # Reduced buffer size to minimize latency

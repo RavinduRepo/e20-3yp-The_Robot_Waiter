@@ -171,7 +171,7 @@ async def play_audio_track(track):
             samplerate=sample_rate,
             channels=channels,
             dtype='int16',
-            device=0  # Change if needed
+            device=11  # Change if needed
         )
         stream.start()
 

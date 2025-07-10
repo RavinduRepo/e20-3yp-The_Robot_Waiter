@@ -190,7 +190,6 @@ async def play_audio_track(track):
             dtype='int16',
             blocksize=1920,  # 1920 samples = 40ms @ 48kHz
             latency='high',
-            buffersize=4      # buffer queue depth
         )
 
         stream.start()

@@ -72,16 +72,18 @@ class MicrophoneAudioTrack(MediaStreamTrack):
             """
             if status:
                 # Log status messages, especially 'input overflow'
-                # Check for specific status flags for more detailed logging
-                if sd.CallbackFlags.INPUT_OVERFLOW in status:
+                # Check for specific status flags using bitwise AND
+                if status & sd.CallbackFlags.INPUT_OVERFLOW:
                     print("Sounddevice callback status: INPUT OVERFLOW - Data was lost.")
-                if sd.CallbackFlags.OUTPUT_UNDERFLOW in status:
+                if status & sd.CallbackFlags.OUTPUT_UNDERFLOW:
                     print("Sounddevice callback status: OUTPUT UNDERFLOW - Output buffer ran dry.")
-                if sd.CallbackFlags.PRIMING_OUTPUT in status:
+                if status & sd.CallbackFlags.PRIMING_OUTPUT:
                     print("Sounddevice callback status: PRIMING OUTPUT - Initializing output buffer.")
-                # Log any other status flags
-                if status not in [sd.CallbackFlags.INPUT_OVERFLOW, sd.CallbackFlags.OUTPUT_UNDERFLOW, sd.CallbackFlags.PRIMING_OUTPUT]:
-                    print(f"Sounddevice callback status: {status}")
+                # Log any other status flags that are set
+                # This check ensures we only print if there's *any* flag set,
+                # and avoids re-printing the specific ones already handled.
+                if status & ~(sd.CallbackFlags.INPUT_OVERFLOW | sd.CallbackFlags.OUTPUT_UNDERFLOW | sd.CallbackFlags.PRIMING_OUTPUT):
+                    print(f"Sounddevice callback status: Other flags set: {status}")
 
             # Put the audio data into the asyncio queue.
             try:

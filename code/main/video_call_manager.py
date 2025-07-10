@@ -276,11 +276,8 @@ async def play_audio_track(track):
             print(f"[DEBUG] Sample rate {sample_rate} seems too low, trying 48000")
             sample_rate = 48000
         
-        # Test: Try doubling sample rate if sound is too deep
-        # You can comment this out if it doesn't help
-        test_sample_rate = sample_rate * 2
-        print(f"[DEBUG] Testing with doubled sample rate: {test_sample_rate}")
-        sample_rate = test_sample_rate
+        # Don't double the sample rate - it was causing issues
+        # sample_rate = sample_rate  # Keep original
         
         # Process first frame to get actual format
         pcm = first_frame.to_ndarray()
@@ -291,18 +288,28 @@ async def play_audio_track(track):
         original_dtype = pcm.dtype
         print(f"[DEBUG] Using original dtype: {original_dtype}")
             
-        # Determine actual channels from PCM data
+        # Determine actual channels from PCM data AND layout
         if pcm.ndim == 1:
             detected_channels = 1
         elif pcm.ndim == 2:
-            # Check which dimension is channels vs samples
-            if pcm.shape[0] == 1 or pcm.shape[0] == 2:
-                # (channels, samples) format
-                detected_channels = pcm.shape[0]
-                pcm = pcm.T  # Convert to (samples, channels)
+            # The layout says "stereo" but PCM shape is (1, 1920) - this is actually mono
+            if pcm.shape[0] == 1:
+                # (1, samples) format - this is mono despite "stereo" layout
+                detected_channels = 1
+                pcm = pcm.reshape(-1)  # Convert to (samples,) format
+            elif pcm.shape[1] == 1:
+                # (samples, 1) format - this is mono
+                detected_channels = 1
+                pcm = pcm.reshape(-1)  # Convert to (samples,) format
             else:
-                # (samples, channels) format
-                detected_channels = pcm.shape[1]
+                # Check which dimension is channels vs samples
+                if pcm.shape[0] == 1 or pcm.shape[0] == 2:
+                    # (channels, samples) format
+                    detected_channels = pcm.shape[0]
+                    pcm = pcm.T  # Convert to (samples, channels)
+                else:
+                    # (samples, channels) format
+                    detected_channels = pcm.shape[1]
         else:
             print(f"[x] Unexpected PCM shape: {pcm.shape}")
             return
@@ -334,7 +341,13 @@ async def play_audio_track(track):
                 
                 # Handle channel format consistently
                 if pcm.ndim == 2:
-                    if pcm.shape[0] == detected_channels and pcm.shape[1] > pcm.shape[0]:
+                    if pcm.shape[0] == 1:
+                        # (1, samples) format - convert to mono
+                        pcm = pcm.reshape(-1)
+                    elif pcm.shape[1] == 1:
+                        # (samples, 1) format - convert to mono
+                        pcm = pcm.reshape(-1)
+                    elif pcm.shape[0] == detected_channels and pcm.shape[1] > pcm.shape[0]:
                         # (channels, samples) format - transpose it
                         pcm = pcm.T
                 

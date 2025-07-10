@@ -11,6 +11,7 @@ from ultrasonic_thread2 import measure_distance
 import RPi.GPIO as GPIO
 import subprocess
 import signal
+import read_battery_precentage
 
 # Motor GPIO pins
 IN1, IN2 = 13, 27
@@ -55,7 +56,7 @@ def save_system_state(state):
 
 def cleanup_and_exit():
     """Clean up resources and exit"""
-    global mqtt_client, ultrasonic_process, obstacle_process, motor_timer, system_running
+    global mqtt_client, ultrasonic_process, obstacle_process, motor_timer, system_running,read_battery_precentage_process
     
     print("🧹 Starting cleanup process...")
     system_running = False
@@ -94,6 +95,11 @@ def cleanup_and_exit():
         print("🛑 Terminating video process...")
         video_process.terminate()
         video_process.wait()
+
+    if read_battery_precentage_process and read_battery_precentage_process.is_alive():
+        print("🛑 Terminating read battery precentage process...")
+        read_battery_precentage_process.terminate()
+        read_battery_precentage_process.wait()
 
     # GPIO cleanup
     GPIO.cleanup()
@@ -288,9 +294,11 @@ def customCallback(client, userdata, message):
     except Exception as e:
         print(f"⚠️ Error processing MQTT message: {e}")
 
+
+
 def main():
     """Main function to initialize and run the robot control system"""
-    global mqtt_client, ultrasonic_process, obstacle_process, system_running
+    global mqtt_client, ultrasonic_process, obstacle_process, system_running,read_battery_precentage_process
     
     # Set up signal handlers
     signal.signal(signal.SIGTERM, signal_handler)
@@ -344,10 +352,27 @@ def main():
         obstacle_process = multiprocessing.Process(target=monitor_obstacles)
         obstacle_process.start()
 
+        print("Starting battery precentage monitoring process...")
+        mqtt_config = {
+            "endpoint": endpoint,
+            "access_key": aws_access_key,
+            "secret_key": aws_secret_key,
+            "session_token": aws_session_token,
+            "ca_path": "../cert/AmazonRootCA1.pem",
+            "topic": topic
+        }
+
+        read_battery_precentage_process = multiprocessing.Process(
+            target=read_battery_precentage.read_serial_batter_status,
+            args=(mqtt_config,)
+        )
+        read_battery_precentage_process.start()
+
+
         # Update system state
         save_system_state({
             "connected": True, 
-            "processes": [ultrasonic_process.pid, obstacle_process.pid]
+            "processes": [ultrasonic_process.pid, obstacle_process.pid, read_battery_precentage_process.pid]
         })
 
         print("🤖 Robot control system fully initialized!")

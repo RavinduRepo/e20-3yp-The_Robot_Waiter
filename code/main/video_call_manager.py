@@ -109,6 +109,16 @@ class MicrophoneAudioTrack(MediaStreamTrack):
             print("[x] Error in recv():", e)
             return None
 
+def get_usb_microphone(name_contains="USB"):
+    """Finds the first input device with a name containing the given substring."""
+    devices = sd.query_devices()
+    for idx, dev in enumerate(devices):
+        if dev['max_input_channels'] > 0 and name_contains.lower() in dev['name'].lower():
+            print(f"[✓] Selected input device: {dev['name']} (index {idx})")
+            return idx
+    raise RuntimeError(f"No USB microphone found matching '{name_contains}'")
+
+
 # Global PC
 pc = None
 
@@ -126,7 +136,9 @@ async def main(call_id):
     video_track = PiCameraVideoTrack()
     pc.addTrack(video_track)
 
-    audio_track = MicrophoneAudioTrack(device=2)
+    device_index = get_usb_microphone("USB")  # or "PnP" or full name
+    audio_track = MicrophoneAudioTrack(device=device_index)
+
     pc.addTrack(audio_track)
 
     call_ref = db.collection('calls').document(call_id)
@@ -154,7 +166,7 @@ async def main(call_id):
     await pc.setRemoteDescription(RTCSessionDescription(sdp=offer["sdp"], type=offer["type"]))
 
     ## audio test
-    print("Remote SDP:", offer["sdp"])
+    # print("Remote SDP:", offer["sdp"])
     # print(pc.remoteDescription.sdp)
     # print(pc.localDescription.sdp)
     #erteeeeeeee
@@ -162,10 +174,10 @@ async def main(call_id):
     answer = await pc.createAnswer()
     await pc.setLocalDescription(answer)
 
-    ########################
-    print("[Debug] Local SDP:")
-    print(pc.localDescription.sdp)
-    ########################
+    # ########################
+    # print("[Debug] Local SDP:")
+    # print(pc.localDescription.sdp)
+    # ########################
 
     call_ref.update({"answer": {
         "type": pc.localDescription.type,

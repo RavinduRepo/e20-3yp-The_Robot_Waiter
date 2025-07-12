@@ -947,20 +947,39 @@ def monitor_wifi_connection(interval=20, fail_threshold=3):
     """Monitor WiFi and fallback to hotspot if lost"""
     print("[Monitor] WiFi monitor thread started")
     fails = 0
+
     while True:
-        connected = check_internet_connectivity()
-        if connected:
+        # Check if connected to a WiFi network
+        success, ssid, _ = run_command('iwgetid -r')
+
+        if success and ssid.strip():
+            print(f"[Monitor] Connected to SSID: {ssid.strip()}")
             fails = 0
         else:
             fails += 1
             print(f"[Monitor] WiFi check failed ({fails}/{fail_threshold})")
-            if fails >= fail_threshold:
-                print("[Monitor] Re-enabling hotspot due to connection loss")
-                run_command("sudo systemctl enable hostapd")
-                run_command("sudo systemctl enable dnsmasq")
-                run_command("sudo systemctl start hostapd")
-                run_command("sudo systemctl start dnsmasq")
-                fails = 0  # reset after fallback
+
+        # After too many failures, try enabling hotspot
+        if fails >= fail_threshold:
+            print("[Monitor] Re-enabling hotspot due to connection loss")
+
+            # Stop wpa_supplicant to release wlan0
+            run_command("sudo systemctl stop wpa_supplicant")
+            run_command("sudo systemctl disable wpa_supplicant")
+
+            # Start hostapd and dnsmasq
+            run_command("sudo systemctl unmask hostapd")
+            run_command("sudo systemctl enable hostapd")
+            run_command("sudo systemctl enable dnsmasq")
+            run_command("sudo systemctl restart hostapd")
+            run_command("sudo systemctl restart dnsmasq")
+
+            # Log status
+            success, out, err = run_command("sudo systemctl status hostapd")
+            print("[Monitor] hostapd status:\n", out, err)
+
+            fails = 0  # Reset after fallback
+
         time.sleep(interval)
 
 if __name__ == "__main__":

@@ -34,6 +34,6 @@ echo "Files in current directory:"
 ls -la
 
 # run wifi setup script
-python wifi_manager.py
+python wifi_manager.py &
 # Run the Python script
 python robot_main.py

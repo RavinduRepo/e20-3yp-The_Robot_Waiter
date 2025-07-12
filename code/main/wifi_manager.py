@@ -915,6 +915,12 @@ def main():
     server_thread = threading.Thread(target=start_web_server)
     server_thread.daemon = True
     server_thread.start()
+
+    # Start WiFi monitor thread
+    monitor_thread = threading.Thread(target=monitor_wifi_connection)
+    monitor_thread.daemon = True
+    monitor_thread.start()
+
     
     print(f"\n🌐 Web interface started!")
     print(f"   Local access: http://localhost:8000")
@@ -936,6 +942,26 @@ def main():
             time.sleep(1)
     except KeyboardInterrupt:
         print("\n\n🛑 Shutting down setup tool...")
+
+def monitor_wifi_connection(interval=20, fail_threshold=3):
+    """Monitor WiFi and fallback to hotspot if lost"""
+    print("[Monitor] WiFi monitor thread started")
+    fails = 0
+    while True:
+        connected = check_internet_connectivity()
+        if connected:
+            fails = 0
+        else:
+            fails += 1
+            print(f"[Monitor] WiFi check failed ({fails}/{fail_threshold})")
+            if fails >= fail_threshold:
+                print("[Monitor] Re-enabling hotspot due to connection loss")
+                run_command("sudo systemctl enable hostapd")
+                run_command("sudo systemctl enable dnsmasq")
+                run_command("sudo systemctl start hostapd")
+                run_command("sudo systemctl start dnsmasq")
+                fails = 0  # reset after fallback
+        time.sleep(interval)
 
 if __name__ == "__main__":
     main()

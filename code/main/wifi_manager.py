@@ -875,7 +875,7 @@ def status():
 
 def start_web_server():
     """Start the Flask web server"""
-    app.run(host='0.0.0.0', port=8080, debug=False)
+    app.run(host='0.0.0.0', port=8000, debug=False)
 
 def main():
     """Main function"""
@@ -909,13 +909,13 @@ def main():
     server_thread.start()
     
     print(f"\n🌐 Web interface started!")
-    print(f"   Local access: http://localhost:8080")
+    print(f"   Local access: http://localhost:8000")
     
     # Try to get IP address for remote access
     success, output, _ = run_command("hostname -I")
     if success and output.strip():
         ip = output.strip().split()[0]
-        print(f"   Network access: http://{ip}:8080")
+        print(f"   Network access: http://{ip}:8000")
     
     print(f"\n📱 Features available:")
     print(f"   • WiFi network scanning and connection")

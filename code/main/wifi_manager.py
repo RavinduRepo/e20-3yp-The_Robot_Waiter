@@ -778,11 +778,19 @@ def connect():
             success, message = connect_to_wifi_wpa(ssid, password)
         
         if success:
-            # Save successful connection
             save_wifi_config(ssid, password)
-            
-            # Check internet connectivity
-            time.sleep(5)  # Wait a bit for connection to stabilize
+
+            # Disable AP mode (stop hostapd and dnsmasq)
+            run_command("sudo systemctl stop hostapd")
+            run_command("sudo systemctl stop dnsmasq")
+            run_command("sudo systemctl disable hostapd")
+            run_command("sudo systemctl disable dnsmasq")
+
+            # Wait and try to get IP address
+            time.sleep(3)
+            run_command("sudo dhclient wlan0")
+
+            time.sleep(5)
             if check_internet_connectivity():
                 message += " - Internet connectivity confirmed"
             else:

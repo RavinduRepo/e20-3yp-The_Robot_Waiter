@@ -1,4 +1,3 @@
-# aruco_server.py
 import asyncio
 import websockets
 import json
@@ -13,7 +12,7 @@ from PIL import Image
 
 class ArUcoWebSocketServer:
     def __init__(self, calibration_file="camera_calibration.pkl",
-                 dictionary_type=cv2.aruco.DICT_6X6_250, marker_size=100.0):
+                 dictionary_type=cv2.aruco.DICT_6X6_250, marker_size=50.0):
         """
         Initialize ArUco WebSocket server
 
@@ -140,39 +139,74 @@ class ArUcoWebSocketServer:
         return distance, (roll_deg, pitch_deg, yaw_deg)
 
     def calculate_centering_metrics(self, marker_center, frame_shape):
-        """Calculate how centered a marker is from the frame center"""
+        """Calculate how centered a marker is horizontally from the frame center"""
         frame_height, frame_width = frame_shape[:2]
         frame_center_x = frame_width // 2
-        frame_center_y = frame_height // 2
 
         offset_x = marker_center[0] - frame_center_x
-        offset_y = marker_center[1] - frame_center_y
+        max_horizontal_distance = frame_center_x
 
-        distance_from_center = math.sqrt(offset_x**2 + offset_y**2)
-        max_distance = math.sqrt(frame_center_x**2 + frame_center_y**2)
-
-        centering_percentage = max(0, 100 - (distance_from_center / max_distance) * 100)
-        horizontal_centering = max(0, 100 - (abs(offset_x) / frame_center_x) * 100)
-        vertical_centering = max(0, 100 - (abs(offset_y) / frame_center_y) * 100)
+        horizontal_centering_percentage = max(0, 100 - (abs(offset_x) / max_horizontal_distance) * 100)
 
         direction = ""
-        if abs(offset_x) > 10:
+        if abs(offset_x) > 10: # A small threshold to consider it "centered"
             direction += "Right" if offset_x > 0 else "Left"
-        if abs(offset_y) > 10:
-            direction += "Bottom" if offset_y > 0 else "Top"
         if not direction:
-            direction = "Centered"
+            direction = "Centered" # Changed from "Horizontally Centered" to match navigate_robot logic
 
         return {
-            'offset_x': int(offset_x), # Ensure int type
-            'offset_y': int(offset_y), # Ensure int type
-            'distance_from_center': float(distance_from_center), # Ensure float
-            'centering_percentage': float(centering_percentage), # Ensure float
-            'horizontal_centering': float(horizontal_centering), # Ensure float
-            'vertical_centering': float(vertical_centering), # Ensure float
+            'offset_x': int(offset_x),
+            'horizontal_centering_percentage': float(horizontal_centering_percentage),
             'direction': direction,
-            'frame_center': (int(frame_center_x), int(frame_center_y)) # Ensure int type
+            'frame_center_x': int(frame_center_x)
         }
+
+    def navigate_robot(self, marker_data):
+        """
+        Generates robot navigation commands based on marker data.
+        marker_data should contain 'direction', 'distance_mm', and 'pitch_deg'.
+        """
+        direction = marker_data.get('direction')
+        distance = marker_data.get('distance_mm')
+        pitch = marker_data.get('pitch_deg')
+
+        commands = []
+
+        if direction is None or distance is None or pitch is None:
+            # Cannot navigate without complete data
+            return ["WAIT"] # Or an appropriate default command
+
+        # Step 1: Tilt Correction (only if abs(pitch) > 30 and distance > 500)
+        if abs(pitch) > 30:
+            if distance <= 500:
+                commands.append("ArrowDown")  # Move back to gain space
+                return commands
+
+            if pitch > 0: # Tilted forward/up (marker is below center, or angled down)
+                commands.append("ArrowLeft")     # Rotate right to correct tilt (assuming robot rotates right for ArrowLeft input to level)
+                commands.append("ArrowUp")       # Move a bit forward
+                commands.append("ArrowRight")    # Rotate back to original orientation
+            else: # Tilted backward/down (marker is above center, or angled up)
+                commands.append("ArrowRight")    # Rotate left to correct tilt
+                commands.append("ArrowUp")       # Move a bit forward
+                commands.append("ArrowLeft")     # Rotate back to original orientation
+
+            return commands  # Don't proceed to next step this round
+
+        # Step 2: Horizontal Centering
+        if direction == "Left":
+            commands.append("ArrowLeft")  # Rotate left ~20°
+        elif direction == "Right":
+            commands.append("ArrowRight")  # Rotate right ~20°
+
+        # Step 3: Move closer
+        elif direction == "Centered":
+            if distance > 300:
+                commands.append("ArrowUp")
+            else:
+                # Marker is centered and close enough
+                commands.append("STOP")  # Or no-op
+        return commands
 
     def process_frame(self, frame):
         print("Processing frame for ArUco markers...")
@@ -191,43 +225,53 @@ class ArUcoWebSocketServer:
             rvecs, tvecs = self.estimate_pose(corners, ids)
 
             for i in range(len(ids)):
-                # Ensure marker_center elements are Python ints
                 marker_center = np.mean(corners[i][0], axis=0).astype(int)
                 centering_metrics = self.calculate_centering_metrics(marker_center, frame.shape)
 
                 marker_result = {
-                    'id': int(ids[i][0]), # Ensure int type
-                    'center': [int(marker_center[0]), int(marker_center[1])], # Ensure int types
-                    'centering_percentage': centering_metrics['centering_percentage'],
-                    'horizontal_centering': centering_metrics['horizontal_centering'],
-                    'vertical_centering': centering_metrics['vertical_centering'],
+                    'id': int(ids[i][0]),
+                    'center_x': int(marker_center[0]),
+                    'horizontal_centering_percentage': centering_metrics['horizontal_centering_percentage'],
                     'direction': centering_metrics['direction'],
                     'offset_x': centering_metrics['offset_x'],
-                    'offset_y': centering_metrics['offset_y']
+                    'commands': [] # Initialize commands list
                 }
 
                 if self.calibrated and rvecs is not None and tvecs is not None:
                     distance, angles = self.calculate_distance_and_orientation(rvecs[i], tvecs[i])
-                    roll, pitch, yaw = angles
+                    _, pitch, _ = angles
 
                     marker_result.update({
-                        'distance_mm': float(distance), # Ensure float type
-                        'roll_deg': float(roll),       # Ensure float type
-                        'pitch_deg': float(pitch),     # Ensure float type
-                        'yaw_deg': float(yaw)          # Ensure float type
+                        'distance_mm': float(distance),
+                        'pitch_deg': float(pitch)
                     })
+
+                    # Generate navigation commands using the new function
+                    # Ensure the data passed to navigate_robot matches its expected structure
+                    nav_data = {
+                        'direction': marker_result['direction'],
+                        'distance_mm': marker_result['distance_mm'],
+                        'pitch_deg': marker_result['pitch_deg']
+                    }
+                    marker_result['commands'] = self.navigate_robot(nav_data)
+                else:
+                    # If not calibrated, or pose estimation failed, provide default commands
+                    marker_result['commands'] = ["CALIBRATION_NEEDED"]
+
 
                 detection_results.append(marker_result)
 
-                # Print to console
+                # Print to console (simplified)
                 if self.calibrated and rvecs is not None:
-                    print(f"Marker ID {ids[i][0]}: Distance={distance:.1f}mm, "
-                          f"Roll={roll:.1f}°, Pitch={pitch:.1f}°, Yaw={yaw:.1f}°, "
-                          f"Centering={centering_metrics['centering_percentage']:.1f}%, "
-                          f"Direction={centering_metrics['direction']}")
+                    print(f"Marker ID {ids[i][0]}: Distance={marker_result['distance_mm']:.1f}mm, "
+                          f"Pitch={marker_result['pitch_deg']:.1f}°, "
+                          f"Horizontal Centering={marker_result['horizontal_centering_percentage']:.1f}%, "
+                          f"Direction={marker_result['direction']}, "
+                          f"Commands={marker_result['commands']}")
                 else:
-                    print(f"Marker ID {ids[i][0]}: Centering={centering_metrics['centering_percentage']:.1f}%, "
-                          f"Direction={centering_metrics['direction']}")
+                    print(f"Marker ID {ids[i][0]}: Horizontal Centering={marker_result['horizontal_centering_percentage']:.1f}%, "
+                          f"Direction={marker_result['direction']}, "
+                          f"Commands={marker_result['commands']}")
 
         return detection_results
 
@@ -238,15 +282,15 @@ class ArUcoWebSocketServer:
         detection_rate = (self.detection_count / self.frame_count * 100) if self.frame_count > 0 else 0
 
         return {
-            'frames_processed': int(self.frame_count), # Ensure int type
-            'detections': int(self.detection_count),   # Ensure int type
-            'fps': float(fps),                         # Ensure float type
-            'detection_rate': float(detection_rate),   # Ensure float type
-            'elapsed_time': float(elapsed_time)        # Ensure float type
+            'frames_processed': int(self.frame_count),
+            'detections': int(self.detection_count),
+            'fps': float(fps),
+            'detection_rate': float(detection_rate),
+            'elapsed_time': float(elapsed_time)
         }
 
     async def handle_client(self, websocket):
-        """Handle WebSocket client connection - FIXED: removed path parameter"""
+        """Handle WebSocket client connection"""
         self.connected_clients.add(websocket)
         client_addr = websocket.remote_address
         # print(f"Client connected: {client_addr}")

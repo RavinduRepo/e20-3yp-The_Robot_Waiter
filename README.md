@@ -1,6 +1,14 @@
 # The Robot Waiter
 
 ---
+## Links
+
+- [Main Repository (Raspberry Pi Code)](https://github.com/cepdnaclk/e20-3yp-The_Robot_Waiter)
+- [Employee Backend (Node.js)](https://github.com/kushanmalintha/3YP_RW_employee-_backend)
+- [Employee Interface (React)](https://github.com/kushanmalintha/3YP_RW_employee_interface)
+- [Kitchen Backend (Node.js)](https://github.com/E20434/3YP_RW_kitchen_backend)
+- [
+- [Project Page](https://cepdnaclk.github.io/eYY-3yp-The_Robot_Waiter){:target="_blank"}
 
 ## Team
 - E/20/100, A.I. Fernando, [email](mailto:e20100@eng.pdn.ac.lk)
@@ -336,10 +344,4 @@ The Robot Waiter project aims to revolutionize the hospitality industry by provi
 
 ---
 
-## Links
 
-- [Main Repository (Raspberry Pi Code)](https://github.com/cepdnaclk/e20-3yp-The_Robot_Waiter)
-- [Employee Backend (Node.js)](https://github.com/kushanmalintha/3YP_RW_employee-_backend)
-- [Employee Interface (React)](https://github.com/kushanmalintha/3YP_RW_employee_interface)
-- [Kitchen Backend (Node.js)](https://github.com/E20434/3YP_RW_kitchen_backend)
-- [Project Page](https://cepdnaclk.github.io/eYY-3yp-The_Robot_Waiter){:target="_blank"}

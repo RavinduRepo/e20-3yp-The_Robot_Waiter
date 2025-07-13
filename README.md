@@ -1,6 +1,6 @@
 # The Robot Waiter
 
-## This project is part of a multi-repository system. Please refer to the following repositories for complete functionality:
+### This project is part of a multi-repository system. Please refer to the following repositories for complete functionality: ###
 
 - [Main Repository (Raspberry Pi Code)](https://github.com/cepdnaclk/e20-3yp-The_Robot_Waiter)
 - [Robot interface(Node.js)](https://github.com/cepdnaclk/3YP_RW_robot_interface)

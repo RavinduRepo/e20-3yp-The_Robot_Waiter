@@ -7,7 +7,7 @@
 - [Employee Backend (Node.js)](https://github.com/kushanmalintha/3YP_RW_employee-_backend)
 - [Employee Interface (React)](https://github.com/kushanmalintha/3YP_RW_employee_interface)
 - [Kitchen Backend (Node.js)](https://github.com/E20434/3YP_RW_kitchen_backend)
-- [Project Page](https://cepdnaclk.github.io/eYY-3yp-The_Robot_Waiter)
+- [Project Page]([https://cepdnaclk.github.io/eYY-3yp-The_Robot_Waiter](https://cepdnaclk.github.io/e20-3yp-The_Robot_Waiter/#))
 
 ## Team
 - E/20/100, A.I. Fernando, [email](mailto:e20100@eng.pdn.ac.lk)

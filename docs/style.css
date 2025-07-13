@@ -792,4 +792,41 @@ html {
   color: var(--primary);
 }
 
+.budget-table-container {
+  overflow-x: auto;
+  padding: 2rem 1rem;
+}
+
+.modern-budget-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'Rubik', sans-serif;
+  font-size: 0.95rem;
+  background-color: rgba(10, 25, 47, 0.9);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.modern-budget-table thead {
+  background-color: rgba(0, 255, 200, 0.1);
+  color: rgb(244, 245, 247);
+}
+
+.modern-budget-table th,
+.modern-budget-table td {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid #a0b5c0;
+}
+
+.modern-budget-table tbody tr:hover {
+  background-color: #48dccd;
+}
+
+.modern-budget-table tfoot td {
+  background-color:rgba(0, 255, 200, 0.1);
+  font-size: 1rem;
+  color: #f3f2f2;
+}
 

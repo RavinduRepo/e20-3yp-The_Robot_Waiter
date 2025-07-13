@@ -44,6 +44,6 @@ echo "Files in current directory:"
 ls -la
 
 # Start the Wi-Fi manager Flask server in the background
-python wifi_manager.py &
+# python wifi_manager.py &
 # Run the Python script
 python robot_main.py

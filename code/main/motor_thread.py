@@ -153,7 +153,7 @@ def reconnect_system():
     # This is handled by the main initialization process
 
 # === Motor control functions ===
-def stop_motor_after_timeout(timeout=0.1):
+def stop_motor_after_timeout(timeout=0.2):
     global motor_timer
     if motor_timer:
         motor_timer.cancel()

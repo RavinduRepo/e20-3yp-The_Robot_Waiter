@@ -160,7 +160,7 @@ def stop_motor_after_timeout(timeout=0.2):
     motor_timer = threading.Timer(timeout, motor_stop)
     motor_timer.start()
 
-def motor_forward():
+def motor_forward(timeout=0.2):
     if not system_running:
         return
     print("🚀 Moving forward")
@@ -168,9 +168,9 @@ def motor_forward():
     GPIO.output(IN2, GPIO.LOW)
     GPIO.output(IN3, GPIO.HIGH)
     GPIO.output(IN4, GPIO.LOW)
-    stop_motor_after_timeout()
+    stop_motor_after_timeout(timeout=0.2)
 
-def motor_backward():
+def motor_backward(timeout=0.2):
     if not system_running:
         return
     print("🔄 Moving backward")
@@ -178,9 +178,9 @@ def motor_backward():
     GPIO.output(IN2, GPIO.HIGH)
     GPIO.output(IN3, GPIO.LOW)
     GPIO.output(IN4, GPIO.HIGH)
-    stop_motor_after_timeout()
+    stop_motor_after_timeout(timeout=0.2)
 
-def motor_left():
+def motor_left(timeout=0.2):
     if not system_running:
         return
     print("⬅️ Turning left")
@@ -188,9 +188,9 @@ def motor_left():
     GPIO.output(IN2, GPIO.HIGH)
     GPIO.output(IN3, GPIO.HIGH)
     GPIO.output(IN4, GPIO.LOW)
-    stop_motor_after_timeout()
+    stop_motor_after_timeout(timeout=0.2)
 
-def motor_right():
+def motor_right(timeout=0.2):
     if not system_running:
         return
     print("➡️ Turning right")
@@ -198,7 +198,7 @@ def motor_right():
     GPIO.output(IN2, GPIO.LOW)
     GPIO.output(IN3, GPIO.LOW)
     GPIO.output(IN4, GPIO.HIGH)
-    stop_motor_after_timeout()
+    stop_motor_after_timeout(timeout=0.2)
 
 def motor_stop():
     print("🛑 Stopping motors")

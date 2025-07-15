@@ -308,7 +308,7 @@ def customCallback(client, userdata, message):
             pass  # Not a JSON message, handle as regular control command
         
     #     # Handle legacy string format commands (without timestamp)
-    #     if payload == '{"key":"ArrowUp"}':
+    #     if payload == '{"key":"ArrowUp"}': 
     #         if blocked_directions[0]:
     #             print("🚫 Obstacle ahead!")
     #             motor_stop()

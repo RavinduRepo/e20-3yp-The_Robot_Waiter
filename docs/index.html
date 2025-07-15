@@ -115,6 +115,48 @@ The impact of this solution includes improved service efficiency, reduced labor 
   <p id="step-desc" class="flow-tooltip">Hover over a step to see more info</p>
 </section>
 
+<!-- CIRCUIT DIAGRAM SECTION -->
+<section id="circuit" class="section-circuit">
+  <h1>Circuit Diagram</h1>
+  <div class="circuit-img-container">
+    <img src="./images/circuit-diagram.jpg" alt="Circuit Diagram" />
+  </div>
+
+  <div class="circuit-components">
+    <div class="component-card">
+      <i class="ri-cpu-line"></i>
+      <h3>Raspberry Pi 3B</h3>
+      <p>Acts as the brain of the robot, handling processing and network communication via MQTT/WebSockets.</p>
+    </div>
+    <div class="component-card">
+      <i class="ri-battery-charge-line"></i>
+      <h3>12V Battery</h3>
+      <p>Powers the entire robot, providing necessary voltage to motors, sensors, and the processing unit.</p>
+    </div>
+    <div class="component-card">
+      <i class="ri-sensor-line"></i>
+      <h3>HC-SR04 Sensors</h3>
+      <p>Used for obstacle detection and navigation, ensuring smooth delivery without collisions.</p>
+    </div>
+    <div class="component-card">
+      <i class="ri-bluetooth-connect-line"></i>
+      <h3>Motor Driver</h3>
+      <p>Controls the movement of the robot by adjusting voltage and current to the gear motors.</p>
+    </div>
+    <div class="component-card">
+      <i class="ri-tools-line"></i>
+      <h3>Buck Converter</h3>
+      <p>Steps down 12V to 5V for powering the Raspberry Pi safely and efficiently.</p>
+    </div>
+    <div class="component-card">
+      <i class="ri-camera-line"></i>
+      <h3>Camera Module</h3>
+      <p>Captures real-time video for visual monitoring and helps with remote navigation.</p>
+    </div>
+  </div>
+</section>
+
+
 
  <!-- TIMELINE SECTION -->
       <section id="timeline" class="section-timeline">
@@ -287,6 +329,7 @@ Camera Module: Verified video streaming capability using IoT Core, ensuring real
 Ultrasonic Sensors: Tested distance measurement accuracy, sending real-time obstacle data via AWS IoT Core.
 Gyroscope Sensor: Evaluated motion tracking and orientation updates, integrating it with IoT Core for real-time monitoring in the frontend.</p>
 <h2>Software Testing</h2>
+
 <p>       
 MQTT on AWS IoT Core: Verified stable communication between the robot and the frontend by configuring MQTT publishers (robot commands) and subscribers (robot status updates).
 AWS Cognito Authentication: Tested the ability to gain temporary access tokens for the React frontend, reducing the need for constant requests through our Node.js server. This enhances efficiency while ensuring secure access control.
@@ -388,6 +431,7 @@ WebSockets Integration: Ensured real-time data exchange between the frontend and
           <div class="img-wrapper">
             <img class="supervisor-img" src="./images/Screenshot 2025-07-15 110319.png" alt="Supervisor" />
           </div>
+          <p class="name">ISURU NAVEENA</p>
         </div>
       </section>
     </main>

@@ -272,7 +272,7 @@ def customCallback(client, userdata, message):
                 return
             motor_forward()
 
-        elif payload == '{"key":"ArrowDown"}':
+        elif payload == '{"key":"ArrowDown"}': 
             if blocked_directions[1]:
                 print("🚫 Obstacle behind!")
                 motor_stop()

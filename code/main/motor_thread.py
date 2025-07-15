@@ -262,10 +262,10 @@ def customCallback(client, userdata, message):
                 return
 
             # Handle regular commands with timestamp checking
-            if msg_data.get("key") and msg_data.get("time"):
+            if msg_data.get("key") and msg_data.get("timestamp"):
                 if msg_data.get("duration") is None:
                     msg_data["duration"] = 0.2
-                command_time = msg_data["time"]
+                command_time = msg_data["timestamp"]
                 current_time = int(time.time() * 1000)  # Current time in milliseconds
                 time_diff = current_time - command_time
                 duration = msg_data["duration"]

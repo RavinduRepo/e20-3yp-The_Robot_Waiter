@@ -830,3 +830,64 @@ html {
   color: #f3f2f2;
 }
 
+.section-circuit {
+  background-color: var(--dark);
+  padding: 4rem 2rem;
+  color: var(--light);
+  text-align: center;
+}
+
+.section-circuit h1 {
+  font-size: 2.5rem;
+  margin-bottom: 2rem;
+}
+
+.circuit-img-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 2rem;
+}
+
+.circuit-img-container img {
+  max-width: 90%;
+  border-radius: 1rem;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.circuit-components {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 2rem;
+  margin-top: 2rem;
+}
+
+.component-card {
+  background-color: #112240;
+  border-radius: 1rem;
+  padding: 2rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.component-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.3);
+}
+
+.component-card i {
+  font-size: 2.5rem;
+  color: var(--secondary);
+  margin-bottom: 1rem;
+}
+
+.component-card h3 {
+  font-size: 1.25rem;
+  color: var(--primary);
+  margin-bottom: 0.5rem;
+}
+
+.component-card p {
+  font-size: 0.95rem;
+  color: var(--light);
+}
+

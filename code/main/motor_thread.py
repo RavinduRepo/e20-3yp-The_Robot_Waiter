@@ -261,35 +261,78 @@ def customCallback(client, userdata, message):
                     video_process = None
                 return
 
+            # Handle regular commands with timestamp checking
+            if msg_data.get("key") and msg_data.get("time"):
+                if msg_data.get("duration") is None:
+                    msg_data["duration"] = 0.2
+                command_time = msg_data["time"]
+                current_time = int(time.time() * 1000)  # Current time in milliseconds
+                time_diff = current_time - command_time
+                duration = msg_data["duration"]
+                
+                # Check if command is too old (e.g., older than 2 seconds)
+                if time_diff > 2000:
+                    print(f"⏰ Command too old, ignoring. Age: {time_diff}ms")
+                    return
+                
+                key = msg_data["key"]
+                
+                if key == "ArrowUp":
+                    if blocked_directions[0]:
+                        print("🚫 Obstacle ahead!")
+                        motor_stop()
+                        return
+                    motor_forward(timeout=duration)
+
+                elif key == "ArrowDown": 
+                    if blocked_directions[1]:
+                        print("🚫 Obstacle behind!")
+                        motor_stop()
+                        return
+                    motor_backward(timeout=duration)
+
+                elif key == "ArrowLeft":
+                    motor_left(timeout=duration)
+
+                elif key == "ArrowRight":
+                    motor_right(timeout=duration)
+
+                else:
+                    print("❓ Unknown command key")
+                    motor_stop()
+                    if motor_timer:
+                        motor_timer.cancel()
+                return
+
         except json.JSONDecodeError:
             pass  # Not a JSON message, handle as regular control command
         
-        # Handle regular control commands
-        if payload == '{"key":"ArrowUp"}':
-            if blocked_directions[0]:
-                print("🚫 Obstacle ahead!")
-                motor_stop()
-                return
-            motor_forward()
+    #     # Handle legacy string format commands (without timestamp)
+    #     if payload == '{"key":"ArrowUp"}':
+    #         if blocked_directions[0]:
+    #             print("🚫 Obstacle ahead!")
+    #             motor_stop()
+    #             return
+    #         motor_forward()
 
-        elif payload == '{"key":"ArrowDown"}': 
-            if blocked_directions[1]:
-                print("🚫 Obstacle behind!")
-                motor_stop()
-                return
-            motor_backward()
+    #     elif payload == '{"key":"ArrowDown"}': 
+    #         if blocked_directions[1]:
+    #             print("🚫 Obstacle behind!")
+    #             motor_stop()
+    #             return
+    #         motor_backward()
 
-        elif payload == '{"key":"ArrowLeft"}':
-            motor_left()
+    #     elif payload == '{"key":"ArrowLeft"}':
+    #         motor_left()
 
-        elif payload == '{"key":"ArrowRight"}':
-            motor_right()
+    #     elif payload == '{"key":"ArrowRight"}':
+    #         motor_right()
 
-        else:
-            print("❓ Unknown command")
-            motor_stop()
-            if motor_timer:
-                motor_timer.cancel()
+    #     else:
+    #         print("❓ Unknown command")
+    #         motor_stop()
+    #         if motor_timer:
+    #             motor_timer.cancel()
                 
     except Exception as e:
         print(f"⚠️ Error processing MQTT message: {e}")

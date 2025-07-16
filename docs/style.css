@@ -820,10 +820,10 @@ html {
   border-bottom: 1px solid #a0b5c0;
 }
 
-.modern-budget-table tbody tr:hover {
+/* .modern-budget-table tbody tr:hover {
   background-color: #48dccd;
 }
-
+ */
 .modern-budget-table tfoot td {
   background-color:rgba(0, 255, 200, 0.1);
   font-size: 1rem;

@@ -168,7 +168,7 @@ def motor_forward(timeout=0.2):
     GPIO.output(IN2, GPIO.LOW)
     GPIO.output(IN3, GPIO.HIGH)
     GPIO.output(IN4, GPIO.LOW)
-    stop_motor_after_timeout(timeout=0.2)
+    stop_motor_after_timeout(timeout)
 
 def motor_backward(timeout=0.2):
     if not system_running:
@@ -178,7 +178,7 @@ def motor_backward(timeout=0.2):
     GPIO.output(IN2, GPIO.HIGH)
     GPIO.output(IN3, GPIO.LOW)
     GPIO.output(IN4, GPIO.HIGH)
-    stop_motor_after_timeout(timeout=0.2)
+    stop_motor_after_timeout(timeout)
 
 def motor_left(timeout=0.2):
     if not system_running:
@@ -188,7 +188,7 @@ def motor_left(timeout=0.2):
     GPIO.output(IN2, GPIO.HIGH)
     GPIO.output(IN3, GPIO.HIGH)
     GPIO.output(IN4, GPIO.LOW)
-    stop_motor_after_timeout(timeout=0.2)
+    stop_motor_after_timeout(timeout)
 
 def motor_right(timeout=0.2):
     if not system_running:
@@ -198,7 +198,7 @@ def motor_right(timeout=0.2):
     GPIO.output(IN2, GPIO.LOW)
     GPIO.output(IN3, GPIO.LOW)
     GPIO.output(IN4, GPIO.HIGH)
-    stop_motor_after_timeout(timeout=0.2)
+    stop_motor_after_timeout(timeout)
 
 def motor_stop():
     print("🛑 Stopping motors")

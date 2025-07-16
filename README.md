@@ -171,7 +171,7 @@ Detailed designs for the hardware and software components will include:
 
 #  How to Physically Build the Robot – Step-by-Step Guide
 
-![image](https://github.com/user-attachments/assets/56dab1f8-1854-4d79-8a9d-c675134c3541)
+![image](https://github.com/user-attachments/assets/4d39e56a-cc67-426a-8cd1-c3df733e01ac)
 
 🧰📝 Parts You Need
 Before we begin, make sure you have all these components:

@@ -8,14 +8,14 @@
 - [Employee Interface (React)](https://github.com/kushanmalintha/3YP_RW_employee_interface)
 - [Kitchen Backend (Node.js)](https://github.com/E20434/3YP_RW_kitchen_backend)
 - [Project page](https://cepdnaclk.github.io/e20-3yp-The_Robot_Waiter/#)
-
+---
 ## Team
 - E/20/100, A.I. Fernando, [email](mailto:e20100@eng.pdn.ac.lk)
 - E/20/243, K.M.K. Malintha, [email](mailto:e20243@eng.pdn.ac.lk)
 - E/20/280, R.S. Pathirage, [email](mailto:e20280@eng.pdn.ac.lk)
 - E/20/434, Wickramaarachchi P.A., [email](mailto:e20434@eng.pdn.ac.lk)
-
-##Supervisors
+---
+## Supervisors
 - Dr. Isuru Nawinne, [email](isurunawinne@eng.pdn.ac.lk)
 ---
 
@@ -26,8 +26,6 @@
 4. [Testing](#testing)
 5. [Detailed Budget](#detailed-budget)
 6. [Conclusion](#conclusion)
-7. [Links](#links)
-
 ---
 
 ## Introduction

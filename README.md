@@ -15,6 +15,8 @@
 - E/20/280, R.S. Pathirage, [email](mailto:e20280@eng.pdn.ac.lk)
 - E/20/434, Wickramaarachchi P.A., [email](mailto:e20434@eng.pdn.ac.lk)
 
+##Supervisors
+- Dr. Isuru Nawinne, [email](isurunawinne@eng.pdn.ac.lk)
 ---
 
 #### Table of Contents
@@ -30,7 +32,7 @@
 
 ## Introduction
 
-The Robot Waiter is a remotely controlled service robot designed to assist in the food and beverage industry. It operates via online connectivity, providing efficient delivery of items to customers without the need for automation. This solution bridges the gap between traditional manual service and fully automated systems, offering flexibility, cost-effectiveness, and ease of use.
+The Robot Waiter is a cloud controlled service robot designed to assist in the food and beverage industry. It operates via online connectivity, providing efficient delivery of items to customers without the need for automation. This solution bridges the gap between traditional manual service and fully automated systems, offering flexibility, cost-effectiveness, and ease of use.
 
 ![arch1](https://github.com/user-attachments/assets/cdbc1f5c-019c-4468-a345-9524779df48d)
 

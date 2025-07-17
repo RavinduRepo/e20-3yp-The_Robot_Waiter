@@ -6,7 +6,7 @@
 - [Robot interface(Node.js)](https://github.com/cepdnaclk/3YP_RW_robot_interface)
 - [Employee Backend (Node.js)](https://github.com/kushanmalintha/3YP_RW_employee-_backend)
 - [Employee Interface (React)](https://github.com/kushanmalintha/3YP_RW_employee_interface)
-- [Kitchen Backend (Node.js)](https://github.com/E20434/3YP_RW_kitchen_backend)
+- [Kitchen Backend (Node.js)](https://github.com/kushanmalintha/3YP_RW_kitchen_backend)
 - [Project page](https://cepdnaclk.github.io/e20-3yp-The_Robot_Waiter/#)
 ---
 ## Team

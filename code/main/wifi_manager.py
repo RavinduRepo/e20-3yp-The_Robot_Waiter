@@ -778,11 +778,19 @@ def connect():
             success, message = connect_to_wifi_wpa(ssid, password)
         
         if success:
-            # Save successful connection
             save_wifi_config(ssid, password)
-            
-            # Check internet connectivity
-            time.sleep(5)  # Wait a bit for connection to stabilize
+
+            # Disable AP mode (stop hostapd and dnsmasq)
+            run_command("sudo systemctl stop hostapd")
+            run_command("sudo systemctl stop dnsmasq")
+            run_command("sudo systemctl disable hostapd")
+            run_command("sudo systemctl disable dnsmasq")
+
+            # Wait and try to get IP address
+            time.sleep(3)
+            run_command("sudo dhclient wlan0")
+
+            time.sleep(5)
             if check_internet_connectivity():
                 message += " - Internet connectivity confirmed"
             else:
@@ -875,7 +883,7 @@ def status():
 
 def start_web_server():
     """Start the Flask web server"""
-    app.run(host='0.0.0.0', port=8080, debug=False)
+    app.run(host='0.0.0.0', port=8000, debug=False)
 
 def main():
     """Main function"""
@@ -907,15 +915,21 @@ def main():
     server_thread = threading.Thread(target=start_web_server)
     server_thread.daemon = True
     server_thread.start()
+
+    # Start WiFi monitor thread
+    monitor_thread = threading.Thread(target=monitor_wifi_connection)
+    monitor_thread.daemon = True
+    monitor_thread.start()
+
     
     print(f"\n🌐 Web interface started!")
-    print(f"   Local access: http://localhost:8080")
+    print(f"   Local access: http://localhost:8000")
     
     # Try to get IP address for remote access
     success, output, _ = run_command("hostname -I")
     if success and output.strip():
         ip = output.strip().split()[0]
-        print(f"   Network access: http://{ip}:8080")
+        print(f"   Network access: http://{ip}:8000")
     
     print(f"\n📱 Features available:")
     print(f"   • WiFi network scanning and connection")
@@ -928,6 +942,45 @@ def main():
             time.sleep(1)
     except KeyboardInterrupt:
         print("\n\n🛑 Shutting down setup tool...")
+
+def monitor_wifi_connection(interval=20, fail_threshold=3):
+    """Monitor WiFi and fallback to hotspot if lost"""
+    print("[Monitor] WiFi monitor thread started")
+    fails = 0
+
+    while True:
+        # Check if connected to a WiFi network
+        success, ssid, _ = run_command('iwgetid -r')
+
+        if success and ssid.strip():
+            print(f"[Monitor] Connected to SSID: {ssid.strip()}")
+            fails = 0
+        else:
+            fails += 1
+            print(f"[Monitor] WiFi check failed ({fails}/{fail_threshold})")
+
+        # After too many failures, try enabling hotspot
+        if fails >= fail_threshold:
+            print("[Monitor] Re-enabling hotspot due to connection loss")
+
+            # Stop wpa_supplicant to release wlan0
+            run_command("sudo systemctl stop wpa_supplicant")
+            run_command("sudo systemctl disable wpa_supplicant")
+
+            # Start hostapd and dnsmasq
+            run_command("sudo systemctl unmask hostapd")
+            run_command("sudo systemctl enable hostapd")
+            run_command("sudo systemctl enable dnsmasq")
+            run_command("sudo systemctl restart hostapd")
+            run_command("sudo systemctl restart dnsmasq")
+
+            # Log status
+            success, out, err = run_command("sudo systemctl status hostapd")
+            print("[Monitor] hostapd status:\n", out, err)
+
+            fails = 0  # Reset after fallback
+
+        time.sleep(interval)
 
 if __name__ == "__main__":
     main()

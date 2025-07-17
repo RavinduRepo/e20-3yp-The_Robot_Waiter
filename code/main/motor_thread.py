@@ -9,6 +9,9 @@ import sys
 from AWSIoTPythonSDK.MQTTLib import AWSIoTMQTTClient
 from ultrasonic_thread2 import measure_distance
 import RPi.GPIO as GPIO
+import subprocess
+import signal
+import read_battery_precentage
 
 # Motor GPIO pins
 IN1, IN2 = 13, 27
@@ -30,6 +33,7 @@ mqtt_client = None
 ultrasonic_process = None
 obstacle_process = None
 system_running = True
+video_process = None
 
 # Configuration files
 MQTT_LOG_FILE = "mqtt_data_log.json"
@@ -52,7 +56,7 @@ def save_system_state(state):
 
 def cleanup_and_exit():
     """Clean up resources and exit"""
-    global mqtt_client, ultrasonic_process, obstacle_process, motor_timer, system_running
+    global mqtt_client, ultrasonic_process, obstacle_process, motor_timer, system_running,read_battery_precentage_process
     
     print("🧹 Starting cleanup process...")
     system_running = False
@@ -86,7 +90,17 @@ def cleanup_and_exit():
         if obstacle_process.is_alive():
             obstacle_process.kill()
         print("🚧 Obstacle monitoring process terminated")
-    
+
+    if video_process and video_process.poll() is None:
+        print("🛑 Terminating video process...")
+        video_process.terminate()
+        video_process.wait()
+
+    if read_battery_precentage_process and read_battery_precentage_process.is_alive():
+        print("🛑 Terminating read battery precentage process...")
+        read_battery_precentage_process.terminate()
+        read_battery_precentage_process.wait()
+
     # GPIO cleanup
     GPIO.cleanup()
     print("🔌 GPIO cleaned up")
@@ -139,14 +153,14 @@ def reconnect_system():
     # This is handled by the main initialization process
 
 # === Motor control functions ===
-def stop_motor_after_timeout(timeout=0.3):
+def stop_motor_after_timeout(timeout=0.2):
     global motor_timer
     if motor_timer:
         motor_timer.cancel()
     motor_timer = threading.Timer(timeout, motor_stop)
     motor_timer.start()
 
-def motor_forward():
+def motor_forward(timeout=0.2):
     if not system_running:
         return
     print("🚀 Moving forward")
@@ -154,9 +168,9 @@ def motor_forward():
     GPIO.output(IN2, GPIO.LOW)
     GPIO.output(IN3, GPIO.HIGH)
     GPIO.output(IN4, GPIO.LOW)
-    stop_motor_after_timeout()
+    stop_motor_after_timeout(timeout)
 
-def motor_backward():
+def motor_backward(timeout=0.2):
     if not system_running:
         return
     print("🔄 Moving backward")
@@ -164,9 +178,9 @@ def motor_backward():
     GPIO.output(IN2, GPIO.HIGH)
     GPIO.output(IN3, GPIO.LOW)
     GPIO.output(IN4, GPIO.HIGH)
-    stop_motor_after_timeout()
+    stop_motor_after_timeout(timeout)
 
-def motor_left():
+def motor_left(timeout=0.2):
     if not system_running:
         return
     print("⬅️ Turning left")
@@ -174,9 +188,9 @@ def motor_left():
     GPIO.output(IN2, GPIO.HIGH)
     GPIO.output(IN3, GPIO.HIGH)
     GPIO.output(IN4, GPIO.LOW)
-    stop_motor_after_timeout()
+    stop_motor_after_timeout(timeout)
 
-def motor_right():
+def motor_right(timeout=0.2):
     if not system_running:
         return
     print("➡️ Turning right")
@@ -184,7 +198,7 @@ def motor_right():
     GPIO.output(IN2, GPIO.LOW)
     GPIO.output(IN3, GPIO.LOW)
     GPIO.output(IN4, GPIO.HIGH)
-    stop_motor_after_timeout()
+    stop_motor_after_timeout(timeout)
 
 def motor_stop():
     print("🛑 Stopping motors")
@@ -210,7 +224,7 @@ def monitor_obstacles():
 
 # === MQTT message handler ===
 def customCallback(client, userdata, message):
-    global motor_timer, system_running
+    global motor_timer, system_running, video_process
     
     if not system_running:
         return
@@ -232,43 +246,102 @@ def customCallback(client, userdata, message):
                 print("🔄 Reconnect command received")
                 reconnect_system()
                 return
+            if msg_data.get("type") == "videocall_on" and msg_data.get("callId"):
+                call_id = msg_data["callId"]
+                if video_process is None:
+                    print(f"📞 Starting video call process with Call ID: {call_id}")
+                    video_process = subprocess.Popen(["python3", "video_call_manager.py", call_id])
+                return
+
+            elif msg_data.get("type") == "videocall_off":
+                if video_process and video_process.poll() is None:
+                    print("📴 Stopping video call process...")
+                    video_process.send_signal(signal.SIGINT)
+                    video_process.wait()
+                    video_process = None
+                return
+
+            # Handle regular commands with timestamp checking
+            if msg_data.get("key") and msg_data.get("timestamp"):
+                if msg_data.get("duration") is None:
+                    msg_data["duration"] = 0.2
+                command_time = msg_data["timestamp"]
+                current_time = int(time.time() * 1000)  # Current time in milliseconds
+                time_diff = current_time - command_time
+                duration = msg_data["duration"]
                 
+                # Check if command is too old (e.g., older than 2 seconds)
+                if time_diff > 2000:
+                    print(f"⏰ Command too old, ignoring. Age: {time_diff}ms")
+                    return
+                
+                key = msg_data["key"]
+                
+                if key == "ArrowUp":
+                    if blocked_directions[0]:
+                        print("🚫 Obstacle ahead!")
+                        motor_stop()
+                        return
+                    motor_forward(timeout=duration)
+
+                elif key == "ArrowDown": 
+                    if blocked_directions[1]:
+                        print("🚫 Obstacle behind!")
+                        motor_stop()
+                        return
+                    motor_backward(timeout=duration)
+
+                elif key == "ArrowLeft":
+                    motor_left(timeout=duration)
+
+                elif key == "ArrowRight":
+                    motor_right(timeout=duration)
+
+                else:
+                    print("❓ Unknown command key")
+                    motor_stop()
+                    if motor_timer:
+                        motor_timer.cancel()
+                return
+
         except json.JSONDecodeError:
             pass  # Not a JSON message, handle as regular control command
         
-        # Handle regular control commands
-        if payload == '{"key":"ArrowUp"}':
-            if blocked_directions[0]:
-                print("🚫 Obstacle ahead!")
-                motor_stop()
-                return
-            motor_forward()
+    #     # Handle legacy string format commands (without timestamp)
+    #     if payload == '{"key":"ArrowUp"}': 
+    #         if blocked_directions[0]:
+    #             print("🚫 Obstacle ahead!")
+    #             motor_stop()
+    #             return
+    #         motor_forward()
 
-        elif payload == '{"key":"ArrowDown"}':
-            if blocked_directions[1]:
-                print("🚫 Obstacle behind!")
-                motor_stop()
-                return
-            motor_backward()
+    #     elif payload == '{"key":"ArrowDown"}': 
+    #         if blocked_directions[1]:
+    #             print("🚫 Obstacle behind!")
+    #             motor_stop()
+    #             return
+    #         motor_backward()
 
-        elif payload == '{"key":"ArrowLeft"}':
-            motor_left()
+    #     elif payload == '{"key":"ArrowLeft"}':
+    #         motor_left()
 
-        elif payload == '{"key":"ArrowRight"}':
-            motor_right()
+    #     elif payload == '{"key":"ArrowRight"}':
+    #         motor_right()
 
-        else:
-            print("❓ Unknown command")
-            motor_stop()
-            if motor_timer:
-                motor_timer.cancel()
+    #     else:
+    #         print("❓ Unknown command")
+    #         motor_stop()
+    #         if motor_timer:
+    #             motor_timer.cancel()
                 
     except Exception as e:
         print(f"⚠️ Error processing MQTT message: {e}")
 
+
+
 def main():
     """Main function to initialize and run the robot control system"""
-    global mqtt_client, ultrasonic_process, obstacle_process, system_running
+    global mqtt_client, ultrasonic_process, obstacle_process, system_running,read_battery_precentage_process
     
     # Set up signal handlers
     signal.signal(signal.SIGTERM, signal_handler)
@@ -322,10 +395,27 @@ def main():
         obstacle_process = multiprocessing.Process(target=monitor_obstacles)
         obstacle_process.start()
 
+        print("Starting battery precentage monitoring process...")
+        mqtt_config = {
+            "endpoint": endpoint,
+            "access_key": aws_access_key,
+            "secret_key": aws_secret_key,
+            "session_token": aws_session_token,
+            "ca_path": "../cert/AmazonRootCA1.pem",
+            "topic": topic
+        }
+
+        read_battery_precentage_process = multiprocessing.Process(
+            target=read_battery_precentage.read_serial_batter_status,
+            args=(mqtt_config,)
+        )
+        read_battery_precentage_process.start()
+
+
         # Update system state
         save_system_state({
             "connected": True, 
-            "processes": [ultrasonic_process.pid, obstacle_process.pid]
+            "processes": [ultrasonic_process.pid, obstacle_process.pid, read_battery_precentage_process.pid]
         })
 
         print("🤖 Robot control system fully initialized!")

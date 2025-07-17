@@ -3,6 +3,10 @@ import json
 import firebase_admin
 from firebase_admin import credentials, firestore
 from aiortc import RTCPeerConnection, RTCConfiguration, RTCIceServer, RTCSessionDescription, RTCIceCandidate
+from aiortc import VideoStreamTrack
+import av
+import numpy as np
+from picamera2 import Picamera2
 
 # Build the ICE servers list
 ice_servers = [
@@ -23,6 +27,26 @@ ice_servers = [
 # Build the config object
 config = RTCConfiguration(iceServers=ice_servers)
 
+class PiCameraVideoTrack(VideoStreamTrack):
+    """
+    A VideoStreamTrack that captures frames from the Raspberry Pi camera using picamera2.
+    """
+    def __init__(self):
+        super().__init__()
+        self.picam2 = Picamera2()
+        self.picam2.start()
+    
+    async def recv(self):
+        pts, time_base = await self.next_timestamp()
+        frame = self.picam2.capture_array()
+        # Convert to RGB if needed
+        if frame.shape[2] == 4:
+            frame = frame[:, :, :3]
+        video_frame = av.VideoFrame.from_ndarray(frame, format='rgb24')
+        video_frame.pts = pts
+        video_frame.time_base = time_base
+        return video_frame
+
 async def main(call_id):
     # Initialize Firebase only if not already initialized
     if not firebase_admin._apps:
@@ -35,6 +59,10 @@ async def main(call_id):
 
     # Create RTCPeerConnection
     pc = RTCPeerConnection(configuration=config)
+
+    # Add video track from Pi camera
+    video_track = PiCameraVideoTrack()
+    pc.addTrack(video_track)
 
     # Connect to Firestore
     call_ref = db.collection('calls').document(call_id)

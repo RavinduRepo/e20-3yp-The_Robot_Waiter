@@ -3,11 +3,17 @@
 ### This project is part of a multi-repository system. Please refer to the following repositories for complete functionality: ###
 
 - [Main Repository (Raspberry Pi Code)](https://github.com/cepdnaclk/e20-3yp-The_Robot_Waiter)
-- [Robot interface(Node.js)](https://github.com/cepdnaclk/3YP_RW_robot_interface)
+- [Robot interface(React)](https://github.com/cepdnaclk/3YP_RW_robot_interface)
 - [Employee Backend (Node.js)](https://github.com/kushanmalintha/3YP_RW_employee-_backend)
 - [Employee Interface (React)](https://github.com/kushanmalintha/3YP_RW_employee_interface)
-- [Kitchen Backend (Node.js)](https://github.com/E20434/3YP_RW_kitchen_backend)
+- [Kitchen Backend (Node.js)](https://github.com/kushanmalintha/3YP_RW_kitchen_backend)
 - [Project page](https://cepdnaclk.github.io/e20-3yp-The_Robot_Waiter/#)
+##  Project Management
+
+We manage and track our development process using a **Trello board**. Tasks are organized into categories such as:
+You can view our full task board here:  
+🔗 [Trello Board – 3YP RobotWaiter](https://trello.com/b/s9YXYOW1/3yp-robotwaiter)
+
 ---
 ## Team
 - E/20/100, A.I. Fernando, [email](mailto:e20100@eng.pdn.ac.lk)
@@ -35,6 +41,12 @@ The Robot Waiter is a cloud controlled service robot designed to assist in the f
 ![arch1](https://github.com/user-attachments/assets/d1182dd7-442a-4956-923d-862f7409d847)
 
 ---
+### automated charging dock for robot navigation
+
+The robot utilizes OpenCV's ArUco marker detection as part of its autonomous navigation system. In the employee interface, a real-time video feed displays the restaurant environment as captured by the onboard camera. Within the restaurant, a charging dock is equipped with a visible ArUco marker. The robot detects this marker using computer vision and calculates its relative distance and orientation based on the visual input. This enables the robot to autonomously navigate towards the dock with precision, ensuring reliable and efficient recharging without human intervention.
+
+<img width="996" height="570" alt="image" src="https://github.com/user-attachments/assets/707eec71-82d6-4821-a038-157797a780a7" />
+
 
 # step by step
 

@@ -154,14 +154,14 @@ def reconnect_system():
     # This is handled by the main initialization process
 
 # === Motor control functions ===
-def stop_motor_after_timeout(timeout=0.3):
+def stop_motor_after_timeout(timeout=0.2):
     global motor_timer
     if motor_timer:
         motor_timer.cancel()
     motor_timer = threading.Timer(timeout, motor_stop)
     motor_timer.start()
 
-def motor_forward():
+def motor_forward(timeout=0.2):
     if not system_running:
         return
     print("🚀 Moving forward")
@@ -169,9 +169,9 @@ def motor_forward():
     GPIO.output(IN2, GPIO.LOW)
     GPIO.output(IN3, GPIO.HIGH)
     GPIO.output(IN4, GPIO.LOW)
-    stop_motor_after_timeout()
+    stop_motor_after_timeout(timeout)
 
-def motor_backward():
+def motor_backward(timeout=0.2):
     if not system_running:
         return
     print("🔄 Moving backward")
@@ -179,9 +179,9 @@ def motor_backward():
     GPIO.output(IN2, GPIO.HIGH)
     GPIO.output(IN3, GPIO.LOW)
     GPIO.output(IN4, GPIO.HIGH)
-    stop_motor_after_timeout()
+    stop_motor_after_timeout(timeout)
 
-def motor_left():
+def motor_left(timeout=0.2):
     if not system_running:
         return
     print("⬅️ Turning left")
@@ -189,9 +189,9 @@ def motor_left():
     GPIO.output(IN2, GPIO.HIGH)
     GPIO.output(IN3, GPIO.HIGH)
     GPIO.output(IN4, GPIO.LOW)
-    stop_motor_after_timeout()
+    stop_motor_after_timeout(timeout)
 
-def motor_right():
+def motor_right(timeout=0.2):
     if not system_running:
         return
     print("➡️ Turning right")
@@ -199,7 +199,7 @@ def motor_right():
     GPIO.output(IN2, GPIO.LOW)
     GPIO.output(IN3, GPIO.LOW)
     GPIO.output(IN4, GPIO.HIGH)
-    stop_motor_after_timeout()
+    stop_motor_after_timeout(timeout)
 
 def motor_stop():
     print("🛑 Stopping motors")
@@ -262,51 +262,78 @@ def customCallback(client, userdata, message):
                     video_process = None
                 return
 
+            # Handle regular commands with timestamp checking
+            if msg_data.get("key") and msg_data.get("timestamp"):
+                if msg_data.get("duration") is None:
+                    msg_data["duration"] = 0.2
+                command_time = msg_data["timestamp"]
+                current_time = int(time.time() * 1000)  # Current time in milliseconds
+                time_diff = current_time - command_time
+                duration = msg_data["duration"]
+                
+                # Check if command is too old (e.g., older than 2 seconds)
+                if time_diff > 2000:
+                    print(f"⏰ Command too old, ignoring. Age: {time_diff}ms")
+                    return
+                
+                key = msg_data["key"]
+                
+                if key == "ArrowUp":
+                    if blocked_directions[0]:
+                        print("🚫 Obstacle ahead!")
+                        motor_stop()
+                        return
+                    motor_forward(timeout=duration)
+
+                elif key == "ArrowDown": 
+                    if blocked_directions[1]:
+                        print("🚫 Obstacle behind!")
+                        motor_stop()
+                        return
+                    motor_backward(timeout=duration)
+
+                elif key == "ArrowLeft":
+                    motor_left(timeout=duration)
+
+                elif key == "ArrowRight":
+                    motor_right(timeout=duration)
+
+                else:
+                    print("❓ Unknown command key")
+                    motor_stop()
+                    if motor_timer:
+                        motor_timer.cancel()
+                return
+
         except json.JSONDecodeError:
             pass  # Not a JSON message, handle as regular control command
         
-        
-        # Add this global variable at the beginning of your script
-        last_published_status = None
+    #     # Handle legacy string format commands (without timestamp)
+    #     if payload == '{"key":"ArrowUp"}': 
+    #         if blocked_directions[0]:
+    #             print("🚫 Obstacle ahead!")
+    #             motor_stop()
+    #             return
+    #         motor_forward()
 
-        # Inside your function, update like this:
+    #     elif payload == '{"key":"ArrowDown"}': 
+    #         if blocked_directions[1]:
+    #             print("🚫 Obstacle behind!")
+    #             motor_stop()
+    #             return
+    #         motor_backward()
 
-        if payload == '{"key":"ArrowUp"}':
-            if blocked_directions[0]:
-                print("🚫 Obstacle ahead in front!")
-                new_status = {"status": "blocked", "direction": "front"}
-                if last_published_status != new_status:
-                    mqtt_client.publish(topic, json.dumps(new_status), 0)
-                    last_published_status = new_status
-                motor_stop()
-                return
-            motor_forward()
-            last_published_status = None  # Reset if movement is allowed
+    #     elif payload == '{"key":"ArrowLeft"}':
+    #         motor_left()
 
-        elif payload == '{"key":"ArrowDown"}':
-            if blocked_directions[1]:
-                print("🚫 Obstacle behind back!")
-                new_status = {"status": "blocked", "direction": "back"}
-                if last_published_status != new_status:
-                    mqtt_client.publish(topic, json.dumps(new_status), 0)
-                    last_published_status = new_status
-                motor_stop()
-                return
-            motor_backward()
-            last_published_status = None  # Reset if movement is allowed
+    #     elif payload == '{"key":"ArrowRight"}':
+    #         motor_right()
 
-
-        elif payload == '{"key":"ArrowLeft"}':
-            motor_left()
-
-        elif payload == '{"key":"ArrowRight"}':
-            motor_right()
-
-        else:
-            print("❓ Unknown command")
-            motor_stop()
-            if motor_timer:
-                motor_timer.cancel()
+    #     else:
+    #         print("❓ Unknown command")
+    #         motor_stop()
+    #         if motor_timer:
+    #             motor_timer.cancel()
                 
     except Exception as e:
         print(f"⚠️ Error processing MQTT message: {e}")

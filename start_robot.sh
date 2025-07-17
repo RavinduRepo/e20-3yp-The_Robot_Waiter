@@ -1,5 +1,15 @@
 #!/bin/bash
 
+# Disable hotspot on startup if Wi-Fi is working
+ping -c 1 -W 5 8.8.8.8 >/dev/null 2>&1
+if [ $? -eq 0 ]; then
+    echo "Internet detected — disabling hotspot"
+    sudo systemctl stop hostapd
+    sudo systemctl stop dnsmasq
+    sudo systemctl disable hostapd
+    sudo systemctl disable dnsmasq
+fi
+
 # Kill any existing Chrome/Chromium processes
 pkill -f chrome || true
 pkill -f chromium || true
@@ -33,5 +43,7 @@ echo "Current working directory: $(pwd)"
 echo "Files in current directory:"
 ls -la
 
+# Start the Wi-Fi manager Flask server in the background
+# python wifi_manager.py &
 # Run the Python script
 python robot_main.py

@@ -35,6 +35,7 @@ obstacle_process = None
 system_running = True
 video_process = None
 
+
 # Configuration files
 MQTT_LOG_FILE = "mqtt_data_log.json"
 SYSTEM_STATE_FILE = "system_state.json"
@@ -224,7 +225,7 @@ def monitor_obstacles():
 
 # === MQTT message handler ===
 def customCallback(client, userdata, message):
-    global motor_timer, system_running, video_process
+    global motor_timer, system_running, video_process, topic
     
     if not system_running:
         return
@@ -264,20 +265,36 @@ def customCallback(client, userdata, message):
         except json.JSONDecodeError:
             pass  # Not a JSON message, handle as regular control command
         
-        # Handle regular control commands
+        
+        # Add this global variable at the beginning of your script
+        last_published_status = None
+
+        # Inside your function, update like this:
+
         if payload == '{"key":"ArrowUp"}':
             if blocked_directions[0]:
-                print("🚫 Obstacle ahead!")
+                print("🚫 Obstacle ahead in front!")
+                new_status = {"status": "blocked", "direction": "front"}
+                if last_published_status != new_status:
+                    mqtt_client.publish(topic, json.dumps(new_status), 0)
+                    last_published_status = new_status
                 motor_stop()
                 return
             motor_forward()
+            last_published_status = None  # Reset if movement is allowed
 
         elif payload == '{"key":"ArrowDown"}':
             if blocked_directions[1]:
-                print("🚫 Obstacle behind!")
+                print("🚫 Obstacle behind back!")
+                new_status = {"status": "blocked", "direction": "back"}
+                if last_published_status != new_status:
+                    mqtt_client.publish(topic, json.dumps(new_status), 0)
+                    last_published_status = new_status
                 motor_stop()
                 return
             motor_backward()
+            last_published_status = None  # Reset if movement is allowed
+
 
         elif payload == '{"key":"ArrowLeft"}':
             motor_left()
@@ -340,7 +357,7 @@ def main():
         # Connect and subscribe
         print(f"🔗 Connecting to {endpoint} using WebSocket...")
         mqtt_client.connect()
-        mqtt_client.subscribe(topic, 1, customCallback)
+        mqtt_client.subscribe(topic, 1, customCallback) 
         print(f"✅ Subscribed to {topic}. Waiting for messages...")
 
         # === Start background processes ===

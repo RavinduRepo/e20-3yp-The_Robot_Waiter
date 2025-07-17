@@ -270,12 +270,22 @@ class ArUcoWebSocketServer:
 
             if pitch > 0: # Tilted forward/up (marker is below center, or angled down)
                 commands.append("ArrowLeft")     # Rotate right to correct tilt (assuming robot rotates right for ArrowLeft input to level)
+                commands.append("ArrowLeft")
+                commands.append("ArrowLeft")
+                commands.append("ArrowUp")       # Move a bit forward
                 commands.append("ArrowUp")       # Move a bit forward
                 commands.append("ArrowRight")    # Rotate back to original orientation
+                commands.append("ArrowRight") 
+                commands.append("ArrowRight") 
             else: # Tilted backward/down (marker is above center, or angled up)
                 commands.append("ArrowRight")    # Rotate left to correct tilt
+                commands.append("ArrowRight")
+                commands.append("ArrowRight")
                 commands.append("ArrowUp")       # Move a bit forward
+                commands.append("ArrowUp") 
                 commands.append("ArrowLeft")     # Rotate back to original orientation
+                commands.append("ArrowLeft")
+                commands.append("ArrowLeft")
 
             return commands  # Don't proceed to next step this round
 

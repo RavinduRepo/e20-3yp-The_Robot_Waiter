@@ -3,7 +3,7 @@
 ### This project is part of a multi-repository system. Please refer to the following repositories for complete functionality: ###
 
 - [Main Repository (Raspberry Pi Code)](https://github.com/cepdnaclk/e20-3yp-The_Robot_Waiter)
-- [Robot interface(Node.js)](https://github.com/cepdnaclk/3YP_RW_robot_interface)
+- [Robot interface(React)](https://github.com/cepdnaclk/3YP_RW_robot_interface)
 - [Employee Backend (Node.js)](https://github.com/kushanmalintha/3YP_RW_employee-_backend)
 - [Employee Interface (React)](https://github.com/kushanmalintha/3YP_RW_employee_interface)
 - [Kitchen Backend (Node.js)](https://github.com/kushanmalintha/3YP_RW_kitchen_backend)

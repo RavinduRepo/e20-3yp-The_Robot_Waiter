@@ -116,3 +116,17 @@ document.addEventListener('DOMContentLoaded', function() {
     "retina_detect": true
   });
 });
+
+document.addEventListener("DOMContentLoaded", () => {
+  const steps = document.querySelectorAll(".flow-step");
+  const tooltip = document.getElementById("step-desc");
+
+  steps.forEach((step) => {
+    step.addEventListener("mouseover", () => {
+      tooltip.textContent = step.getAttribute("data-desc");
+    });
+    step.addEventListener("mouseout", () => {
+      tooltip.textContent = "Hover over a step to see more info";
+    });
+  });
+});

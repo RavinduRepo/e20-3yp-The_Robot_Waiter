@@ -8,6 +8,12 @@
 - [Employee Interface (React)](https://github.com/kushanmalintha/3YP_RW_employee_interface)
 - [Kitchen Backend (Node.js)](https://github.com/kushanmalintha/3YP_RW_kitchen_backend)
 - [Project page](https://cepdnaclk.github.io/e20-3yp-The_Robot_Waiter/#)
+##  Project Management
+
+We manage and track our development process using a **Trello board**. Tasks are organized into categories such as:
+You can view our full task board here:  
+🔗 [Trello Board – 3YP RobotWaiter](https://trello.com/b/s9YXYOW1/3yp-robotwaiter)
+
 ---
 ## Team
 - E/20/100, A.I. Fernando, [email](mailto:e20100@eng.pdn.ac.lk)

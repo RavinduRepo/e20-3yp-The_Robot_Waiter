@@ -41,7 +41,7 @@ The Robot Waiter is a cloud controlled service robot designed to assist in the f
 ![arch1](https://github.com/user-attachments/assets/d1182dd7-442a-4956-923d-862f7409d847)
 
 ---
-### automated charging dock for robot navigation
+### Automated charging dock for robot navigation
 
 The robot utilizes OpenCV's ArUco marker detection as part of its autonomous navigation system. In the employee interface, a real-time video feed displays the restaurant environment as captured by the onboard camera. Within the restaurant, a charging dock is equipped with a visible ArUco marker. The robot detects this marker using computer vision and calculates its relative distance and orientation based on the visual input. This enables the robot to autonomously navigate towards the dock with precision, ensuring reliable and efficient recharging without human intervention.
 

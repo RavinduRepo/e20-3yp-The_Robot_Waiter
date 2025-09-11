@@ -9,8 +9,8 @@ CONFIG_FILE = "robot_config.json"
 WEBSOCKET_DATA_FILE = "websocket_data.json"
 MQTT_LOG_FILE = "mqtt_data_log.json"
 ROBOT_CREDENTIALS_FILE = "robot_mqtt_credentials.json"
-# SERVER_CONFIG_FILE = "server_config_local.json"
-SERVER_CONFIG_FILE = "server_config.json"
+SERVER_CONFIG_FILE = "server_config_local.json"
+# SERVER_CONFIG_FILE = "server_config.json"
 SYSTEM_STATE_FILE = "system_state.json"
 
 def load_robot_config():

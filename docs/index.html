@@ -59,7 +59,7 @@
           </div>
           <div class="hero-image-box">
             <video width="650px" height="auto" controls autoplay loop>
-              <source src="./images/waiter-video_pNAf4Zcg.mp4" type="video/mp4" />
+              <source src="./images/final-compiled-video_dR55cIL0.mp4" type="video/mp4" />
               Your browser does not support the video tag.
             </video>
           </div>
@@ -326,6 +326,9 @@ The impact of this solution includes improved service efficiency, reduced labor 
         <h1>Testing</h1>
         <h2>Hardware Testing</h2>
         <p>
+        <div class="system-img-container">
+          <img src="./images/Screenshot 2025-07-18 064407.png" alt="System Design Image" />
+        </div>
           
 We conducted individual tests for each sensor to ensure proper functionality:
 
@@ -333,7 +336,9 @@ Camera Module: Verified video streaming capability using IoT Core, ensuring real
 Ultrasonic Sensors: Tested distance measurement accuracy, sending real-time obstacle data via AWS IoT Core.
 Gyroscope Sensor: Evaluated motion tracking and orientation updates, integrating it with IoT Core for real-time monitoring in the frontend.</p>
 <h2>Software Testing</h2>
-
+<div class="system-img-container">
+          <img src="./images/WhatsApp Image 2025-07-18 at 06.51.51_63d8f364.jpg" alt="System Design Image" />
+        </div>
 <p>       
 MQTT on AWS IoT Core: Verified stable communication between the robot and the frontend by configuring MQTT publishers (robot commands) and subscribers (robot status updates).
 AWS Cognito Authentication: Tested the ability to gain temporary access tokens for the React frontend, reducing the need for constant requests through our Node.js server. This enhances efficiency while ensuring secure access control.

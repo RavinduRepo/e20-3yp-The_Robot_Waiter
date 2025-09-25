@@ -1,4 +1,4 @@
-# --- Updated video_call_manager.py with optimized audio handling ---
+# --- Fixed video_call_manager.py (minimal changes to avoid freezes) ---
 import asyncio
 import json
 import firebase_admin
@@ -36,20 +36,117 @@ config = RTCConfiguration(iceServers=ice_servers)
 
 class PiCameraVideoTrack(VideoStreamTrack):
     kind = "video"
-    def __init__(self):
+
+    def __init__(self, width=640, height=480, target_fps=15):
         super().__init__()
+        # Minimal config change: set a reasonable small resolution to reduce load
         self.picam2 = Picamera2()
+        try:
+            video_config = self.picam2.create_video_configuration(main={"size": (width, height)})
+            self.picam2.configure(video_config)
+        except Exception:
+            # If configuration API differs or fails, fall back to default start
+            pass
         self.picam2.start()
 
+        # queue to hand frames from blocking capture into async recv
+        self.frame_queue = asyncio.Queue(maxsize=2)  # small queue to avoid backlog
+        self._capture_task = None
+        self._target_fps = max(1, target_fps)
+        self._capture_interval = 1.0 / self._target_fps
+
+        # Start capture task on the running loop if available, otherwise create it when loop starts
+        try:
+            loop = asyncio.get_running_loop()
+            self._capture_task = loop.create_task(self._capture_loop())
+        except RuntimeError:
+            # no running loop at init time — create lazily in recv on first use
+            self._capture_task = None
+
+    async def _ensure_capture_task(self):
+        if self._capture_task is None:
+            loop = asyncio.get_running_loop()
+            self._capture_task = loop.create_task(self._capture_loop())
+
+    async def _capture_loop(self):
+        """
+        Runs in the event loop, but offloads the blocking capture_array() call to the default executor.
+        Puts frames into an asyncio.Queue so recv() can fetch without blocking.
+        """
+        loop = asyncio.get_running_loop()
+        while True:
+            try:
+                # Offload blocking capture to threadpool
+                frame = await loop.run_in_executor(None, self.picam2.capture_array)
+                if frame is None:
+                    await asyncio.sleep(0.01)
+                    continue
+
+                # Ensure 3 channels (RGB) if camera gives RGBA
+                if frame.ndim == 3 and frame.shape[2] == 4:
+                    frame = frame[:, :, :3]
+
+                # Non-blocking put: if queue full, drop the oldest and put new frame
+                try:
+                    self.frame_queue.put_nowait(frame)
+                except asyncio.QueueFull:
+                    try:
+                        _ = self.frame_queue.get_nowait()  # drop oldest
+                        self.frame_queue.put_nowait(frame)
+                    except Exception:
+                        # if that fails, ignore and continue
+                        pass
+
+                # Pace captures a bit to keep consistent FPS
+                await asyncio.sleep(self._capture_interval)
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                # Log but don't kill the loop
+                print(f"[x] PiCamera capture loop error: {e}")
+                await asyncio.sleep(0.1)
+
     async def recv(self):
+        # ensure capture task is running (in case the object was created before event loop)
+        await self._ensure_capture_task()
+
         pts, time_base = await self.next_timestamp()
-        frame = self.picam2.capture_array()
-        if frame.shape[2] == 4:
-            frame = frame[:, :, :3]
-        video_frame = av.VideoFrame.from_ndarray(frame, format='rgb24')
-        video_frame.pts = pts
-        video_frame.time_base = time_base
-        return video_frame
+
+        try:
+            # Try to get latest frame, wait a short time to avoid blocking forever
+            frame = await asyncio.wait_for(self.frame_queue.get(), timeout=0.5)
+        except asyncio.TimeoutError:
+            # As a fallback, do one blocking capture in executor (rare) to avoid returning None
+            try:
+                loop = asyncio.get_running_loop()
+                frame = await loop.run_in_executor(None, self.picam2.capture_array)
+                if frame is None:
+                    # produce a blank frame if capture failed
+                    frame = np.zeros((480, 640, 3), dtype=np.uint8)
+            except Exception as e:
+                print(f"[x] Fallback capture failed: {e}")
+                frame = np.zeros((480, 640, 3), dtype=np.uint8)
+
+        # Convert to VideoFrame (keep rgb24; av/encoder will handle conversion)
+        try:
+            if frame.ndim == 3 and frame.shape[2] == 3:
+                video_frame = av.VideoFrame.from_ndarray(frame, format='rgb24')
+            else:
+                # If unexpected shape, convert to rgb
+                rgb = frame[..., :3] if frame.ndim == 3 else np.stack([frame]*3, axis=-1)
+                video_frame = av.VideoFrame.from_ndarray(rgb, format='rgb24')
+            video_frame.pts = pts
+            video_frame.time_base = time_base
+            return video_frame
+        except Exception as e:
+            print(f"[x] Error building video frame: {e}")
+            # return a silent/empty frame to avoid breaking
+            blank = np.zeros((480, 640, 3), dtype=np.uint8)
+            video_frame = av.VideoFrame.from_ndarray(blank, format='rgb24')
+            video_frame.pts = pts
+            video_frame.time_base = time_base
+            return video_frame
+
 
 class MicrophoneAudioTrack(MediaStreamTrack):
     kind = "audio"
@@ -61,24 +158,25 @@ class MicrophoneAudioTrack(MediaStreamTrack):
         self.channels = channels
         self.blocksize = 2000  # Reduced blocksize for lower latency (10ms at 48kHz)
         self.sequence = 0
-        
-        # Reduced buffer size to minimize latency
-        self.audio_queue = asyncio.Queue(maxsize=2000)  # ~0.5 seconds of buffer
+
+        # Reduced buffer size to minimize latency and prevent huge backlog
+        self.audio_queue = asyncio.Queue(maxsize=20)  # reduced from 2000 to 20
 
         # Noise threshold for simple noise gating
-        self.NOISE_THRESHOLD_RMS = 80 
+        self.NOISE_THRESHOLD_RMS = 80
 
         def audio_callback(indata, frames, time, status):
             """Audio callback - runs in separate thread"""
             try:
                 # Non-blocking put with immediate drop if queue is full
                 self.audio_queue.put_nowait(np.copy(indata).astype(np.int16))
-            except asyncio.QueueFull:
+            except Exception:
                 # Drop old frames to maintain real-time performance
                 try:
-                    self.audio_queue.get_nowait()  # Remove oldest frame
+                    # try to free one slot and add again
+                    _ = self.audio_queue.get_nowait()
                     self.audio_queue.put_nowait(np.copy(indata).astype(np.int16))
-                except asyncio.QueueEmpty:
+                except Exception:
                     pass
 
         # Initialize the sounddevice input stream
@@ -135,7 +233,7 @@ class MicrophoneAudioTrack(MediaStreamTrack):
             pts = self.sequence * self.blocksize
             time_base = fractions.Fraction(1, self.samplerate)
             self.sequence += 1
-            
+
             audio_frame = av.AudioFrame.from_ndarray(silence, format="s16", layout="mono")
             audio_frame.sample_rate = self.samplerate
             audio_frame.pts = pts
@@ -143,7 +241,17 @@ class MicrophoneAudioTrack(MediaStreamTrack):
             return audio_frame
         except Exception as e:
             print(f"[x] Error in MicrophoneAudioTrack.recv(): {e}")
-            return None
+            # Return silence rather than None to keep pipeline alive
+            silence = np.zeros((1, self.blocksize), dtype=np.int16)
+            pts = self.sequence * self.blocksize
+            time_base = fractions.Fraction(1, self.samplerate)
+            self.sequence += 1
+
+            audio_frame = av.AudioFrame.from_ndarray(silence, format="s16", layout="mono")
+            audio_frame.sample_rate = self.samplerate
+            audio_frame.pts = pts
+            audio_frame.time_base = time_base
+            return audio_frame
 
 def get_usb_microphone(name_contains="USB"):
     """Finds the first input device with a name containing the given substring."""
@@ -156,14 +264,14 @@ def get_usb_microphone(name_contains="USB"):
 
 class AudioPlaybackHandler:
     """Handles audio playback in a separate thread to avoid blocking the main event loop"""
-    
+
     def __init__(self, main_loop):
         self.main_loop = main_loop  # Store reference to main event loop
         self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="AudioPlayback")
         self.audio_queue = asyncio.Queue(maxsize=50)  # Increased buffer size
         self.stream = None
         self.running = False
-        
+
     def start_playback_thread(self, sample_rate, channels, dtype=np.float32):
         """Start the audio playback thread"""
         def playback_worker():
@@ -180,14 +288,14 @@ class AudioPlaybackHandler:
                 stream.start()
                 self.stream = stream
                 self.running = True
-                
+
                 print(f"[✓] Audio playback thread started: {sample_rate}Hz, {channels} channels, {dtype}")
-                
+
                 # Build up initial buffer to prevent underruns
                 buffer = []
                 buffer_target = 10  # Target 10 frames before starting playback
                 buffering = True
-                
+
                 # Process audio frames
                 while self.running:
                     try:
@@ -197,7 +305,7 @@ class AudioPlaybackHandler:
                             self.main_loop  # Use the stored main loop reference
                         )
                         pcm_data = future.result(timeout=0.1)
-                        
+
                         if pcm_data is not None:
                             if buffering:
                                 # Build buffer first
@@ -211,7 +319,7 @@ class AudioPlaybackHandler:
                                     stream.write(buffer.pop(0))
                                 else:
                                     stream.write(pcm_data)
-                                    
+
                     except Exception as e:
                         if self.running:  # Only log if we're still supposed to be running
                             # Generate silence to prevent underruns
@@ -219,7 +327,7 @@ class AudioPlaybackHandler:
                             if not buffering:
                                 stream.write(silence)
                         continue
-                        
+
             except Exception as e:
                 print(f"[x] Audio playback thread error: {e}")
             finally:
@@ -229,10 +337,10 @@ class AudioPlaybackHandler:
                     self.stream = None
                 self.running = False
                 print("[✓] Audio playback thread stopped")
-        
+
         # Start the worker thread
         self.executor.submit(playback_worker)
-    
+
     async def add_audio_frame(self, pcm_data):
         """Add audio frame to playback queue (non-blocking)"""
         try:
@@ -244,7 +352,7 @@ class AudioPlaybackHandler:
                 self.audio_queue.put_nowait(pcm_data)  # Add new
             except asyncio.QueueEmpty:
                 pass
-    
+
     def stop(self):
         """Stop the audio playback"""
         self.running = False
@@ -253,41 +361,41 @@ class AudioPlaybackHandler:
 async def play_audio_track(track):
     """Optimized audio playback using separate thread"""
     global audio_handler
-    
+
     print("[✓] Starting audio playback from browser")
-    
+
     try:
         # Get first frame to determine audio parameters
         first_frame = await track.recv()
-        
+
         # Try to get sample rate from multiple sources
         sample_rate = first_frame.sample_rate
         print(f"[DEBUG] Frame sample rate: {sample_rate}")
         print(f"[DEBUG] Frame format: {first_frame.format}")
         print(f"[DEBUG] Frame layout: {first_frame.layout}")
-        
+
         # Force common sample rates if detection fails
         if sample_rate is None or sample_rate == 0:
             sample_rate = 48000
             print(f"[DEBUG] Using default sample rate: {sample_rate}")
-        
+
         # Check if sample rate seems wrong (too low causes deep sound)
         if sample_rate < 16000:
             print(f"[DEBUG] Sample rate {sample_rate} seems too low, trying 48000")
             sample_rate = 48000
-        
+
         # Don't double the sample rate - it was causing issues
         # sample_rate = sample_rate  # Keep original
-        
+
         # Process first frame to get actual format
         pcm = first_frame.to_ndarray()
         print(f"[DEBUG] Raw PCM shape: {pcm.shape}, dtype: {pcm.dtype}")
         print(f"[DEBUG] Sample rate from frame: {first_frame.sample_rate}")
-        
+
         # Don't convert dtype - keep original format for sounddevice
         original_dtype = pcm.dtype
         print(f"[DEBUG] Using original dtype: {original_dtype}")
-            
+
         # Determine actual channels from PCM data AND layout
         if pcm.ndim == 1:
             detected_channels = 1
@@ -313,32 +421,32 @@ async def play_audio_track(track):
         else:
             print(f"[x] Unexpected PCM shape: {pcm.shape}")
             return
-        
+
         print(f"[✓] Final audio config: {detected_channels} channels, {sample_rate} Hz, dtype: {original_dtype}")
         print(f"[DEBUG] Final PCM shape: {pcm.shape}")
-        
+
         # Initialize audio handler with the current event loop
         main_loop = asyncio.get_running_loop()
         audio_handler = AudioPlaybackHandler(main_loop)
-        
+
         # Start playback thread with original dtype
         audio_handler.start_playback_thread(sample_rate, detected_channels, original_dtype)
-        
+
         # Wait a bit to let the playback thread initialize
         await asyncio.sleep(0.1)
-        
+
         # Add first frame
         await audio_handler.add_audio_frame(pcm)
-        
+
         # Process remaining frames
         while True:
             try:
                 # Use timeout to prevent blocking
                 frame = await asyncio.wait_for(track.recv(), timeout=0.1)
-                
+
                 pcm = frame.to_ndarray()
                 # Keep original dtype - don't convert
-                
+
                 # Handle channel format consistently
                 if pcm.ndim == 2:
                     if pcm.shape[0] == 1:
@@ -350,17 +458,17 @@ async def play_audio_track(track):
                     elif pcm.shape[0] == detected_channels and pcm.shape[1] > pcm.shape[0]:
                         # (channels, samples) format - transpose it
                         pcm = pcm.T
-                
+
                 # Add to playback queue (non-blocking)
                 await audio_handler.add_audio_frame(pcm)
-                
+
             except asyncio.TimeoutError:
                 # No audio frame available, continue loop
                 continue
             except Exception as e:
                 print(f"[x] Error processing audio frame: {e}")
                 break
-                
+
     except Exception as e:
         print(f"[x] Error in audio playback: {e}")
     finally:
@@ -381,7 +489,7 @@ async def main(call_id):
     @pc.on("track")
     def on_track(track):
         print(f"[✓] Received track: {track.kind}")
-        
+
         if track.kind == "audio":
             # Create task but don't await it to avoid blocking
             asyncio.create_task(play_audio_track(track))
@@ -439,7 +547,7 @@ async def main(call_id):
     offer_candidates_ref.on_snapshot(on_snapshot)
 
     print("[✓] WebRTC connection established")
-    
+
     # Keep the connection alive
     try:
         await asyncio.Future()
@@ -463,7 +571,7 @@ if __name__ == "__main__":
 
     call_id = sys.argv[1]
     print(f"Starting WebRTC receiver for call ID: {call_id}")
-    
+
     try:
         asyncio.run(main(call_id))
     except KeyboardInterrupt:

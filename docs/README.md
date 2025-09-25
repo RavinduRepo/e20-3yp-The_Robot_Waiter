@@ -70,7 +70,7 @@ Registers new robots into the system (each gets a unique ID).
 
 Sees a dashboard of robots and employees.
 
-✅ After this, the system is ready to be used.
+After this, the system is ready to be used.
 
 ##  Step 4: Employee Logs In
 Employee goes to the website.
@@ -171,40 +171,40 @@ Detailed designs for the hardware and software components will include:
 
 #  How to Physically Build the Robot – Step-by-Step Guide
 
-![image](https://github.com/user-attachments/assets/4d39e56a-cc67-426a-8cd1-c3df733e01ac)
+![image](https://github.com/user-attachments/assets/20db0169-151b-4b43-ad78-69eabe0506d6)
 
-🧰📝 Parts You Need
+Parts You Need
 Before we begin, make sure you have all these components:
 
 ### Mechanical/Structural Parts
-✅ 4 rubber wheels
+4 rubber wheels
 
-✅ 4 gear motors
+4 gear motors
 
-✅ Screws, nuts, and tools (screwdriver, drill if needed)
+Screws, nuts, and tools (screwdriver, drill if needed)
 
-✅ Wooden chassis box (main body)
+Wooden chassis box (main body)
 
-✅ 2 wooden plates (top and bottom platforms)
+2 wooden plates (top and bottom platforms)
 
-✅ Aluminium frame (for structure and support)
+Aluminium frame (for structure and support)
 
 ### Electronics
-✅ Raspberry Pi (central controller)
+Raspberry Pi (central controller)
 
-✅ 12V Li-ion battery
+12V Li-ion battery
 
-✅ 2 Motor Controllers (H-bridge or L298N-type)
+2 Motor Controllers (H-bridge or L298N-type)
 
-✅ Buck converter (to step down voltage to 5V)
+Buck converter (to step down voltage to 5V)
 
-✅ Dot board (for wiring and mounting)
+Dot board (for wiring and mounting)
 
-✅ Display (screen – LCD, OLED or touchscreen)
+Display (screen – LCD, OLED or touchscreen)
 
-✅ Camera module (for vision)
+Camera module (for vision)
 
-✅ 2 Ultrasonic sensors (for obstacle detection)
+2 Ultrasonic sensors (for obstacle detection)
 
 🛠 Step-by-Step Assembly Procedure
 ##  Step 1: Prepare the Wooden Chassis
@@ -272,7 +272,7 @@ Secure all components using tape, brackets, or screws.
 
 Connect the battery and check if the buck converter gives correct output (5V).
 
-## ✅ Step 10: Test the Robot
+##  Step 10: Test the Robot
 Turn on the system.
 
 Make sure:

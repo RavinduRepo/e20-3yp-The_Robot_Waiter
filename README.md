@@ -3,11 +3,17 @@
 ### This project is part of a multi-repository system. Please refer to the following repositories for complete functionality: ###
 
 - [Main Repository (Raspberry Pi Code)](https://github.com/cepdnaclk/e20-3yp-The_Robot_Waiter)
-- [Robot interface(Node.js)](https://github.com/cepdnaclk/3YP_RW_robot_interface)
+- [Robot interface(React)](https://github.com/cepdnaclk/3YP_RW_robot_interface)
 - [Employee Backend (Node.js)](https://github.com/kushanmalintha/3YP_RW_employee-_backend)
 - [Employee Interface (React)](https://github.com/kushanmalintha/3YP_RW_employee_interface)
-- [Kitchen Backend (Node.js)](https://github.com/E20434/3YP_RW_kitchen_backend)
+- [Kitchen Backend (Node.js)](https://github.com/kushanmalintha/3YP_RW_kitchen_backend)
 - [Project page](https://cepdnaclk.github.io/e20-3yp-The_Robot_Waiter/#)
+##  Project Management
+
+We manage and track our development process using a **Trello board**. Tasks are organized into categories such as:
+You can view our full task board here:  
+🔗 [Trello Board – 3YP RobotWaiter](https://trello.com/b/s9YXYOW1/3yp-robotwaiter)
+
 ---
 ## Team
 - E/20/100, A.I. Fernando, [email](mailto:e20100@eng.pdn.ac.lk)
@@ -35,6 +41,12 @@ The Robot Waiter is a cloud controlled service robot designed to assist in the f
 ![arch1](https://github.com/user-attachments/assets/d1182dd7-442a-4956-923d-862f7409d847)
 
 ---
+### Automated charging dock for robot navigation
+
+The robot utilizes OpenCV's ArUco marker detection as part of its autonomous navigation system. In the employee interface, a real-time video feed displays the restaurant environment as captured by the onboard camera. Within the restaurant, a charging dock is equipped with a visible ArUco marker. The robot detects this marker using computer vision and calculates its relative distance and orientation based on the visual input. This enables the robot to autonomously navigate towards the dock with precision, ensuring reliable and efficient recharging without human intervention.
+
+<img width="996" height="570" alt="image" src="https://github.com/user-attachments/assets/707eec71-82d6-4821-a038-157797a780a7" />
+
 
 # step by step
 
@@ -70,7 +82,7 @@ Registers new robots into the system (each gets a unique ID).
 
 Sees a dashboard of robots and employees.
 
-✅ After this, the system is ready to be used.
+After this, the system is ready to be used.
 
 ##  Step 4: Employee Logs In
 Employee goes to the website.
@@ -173,38 +185,38 @@ Detailed designs for the hardware and software components will include:
 
 ![image](https://github.com/user-attachments/assets/4d39e56a-cc67-426a-8cd1-c3df733e01ac)
 
-🧰📝 Parts You Need
+Parts You Need
 Before we begin, make sure you have all these components:
 
 ### Mechanical/Structural Parts
-✅ 4 rubber wheels
+4 rubber wheels
 
-✅ 4 gear motors
+4 gear motors
 
-✅ Screws, nuts, and tools (screwdriver, drill if needed)
+Screws, nuts, and tools (screwdriver, drill if needed)
 
-✅ Wooden chassis box (main body)
+Wooden chassis box (main body)
 
-✅ 2 wooden plates (top and bottom platforms)
+2 wooden plates (top and bottom platforms)
 
-✅ Aluminium frame (for structure and support)
+Aluminium frame (for structure and support)
 
 ### Electronics
-✅ Raspberry Pi (central controller)
+Raspberry Pi (central controller)
 
-✅ 12V Li-ion battery
+12V Li-ion battery
 
-✅ 2 Motor Controllers (H-bridge or L298N-type)
+2 Motor Controllers (H-bridge or L298N-type)
 
-✅ Buck converter (to step down voltage to 5V)
+Buck converter (to step down voltage to 5V)
 
-✅ Dot board (for wiring and mounting)
+Dot board (for wiring and mounting)
 
-✅ Display (screen – LCD, OLED or touchscreen)
+Display (screen – LCD, OLED or touchscreen)
 
-✅ Camera module (for vision)
+Camera module (for vision)
 
-✅ 2 Ultrasonic sensors (for obstacle detection)
+2 Ultrasonic sensors (for obstacle detection)
 
 🛠 Step-by-Step Assembly Procedure
 ##  Step 1: Prepare the Wooden Chassis
@@ -272,7 +284,7 @@ Secure all components using tape, brackets, or screws.
 
 Connect the battery and check if the buck converter gives correct output (5V).
 
-## ✅ Step 10: Test the Robot
+##  Step 10: Test the Robot
 Turn on the system.
 
 Make sure:
